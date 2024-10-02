@@ -40,7 +40,11 @@ class UserDialog(QDialog):
 class UserTreeView(QWidget):
     def __init__(self):
         super().__init__()
+        self.init_ui()
 
+        self.columns = ["Name", "Email", "Age"]
+        
+    def init_ui(self):
         self.setWindowTitle("User Tree View")
         self.setGeometry(100, 100, 600, 400)
 
@@ -74,8 +78,6 @@ class UserTreeView(QWidget):
         self.add_column_button.clicked.connect(self.add_column)
         self.layout.addWidget(self.add_column_button)
 
-        self.columns = ["Name", "Email", "Age"]
-
     def open_user_dialog(self):
         dialog = UserDialog(self.columns, self.add_user)
         dialog.exec()
@@ -106,9 +108,6 @@ class UserTreeView(QWidget):
             current_headers = [self.tree_widget.headerItem().text(i) for i in range(self.tree_widget.headerItem().columnCount())]
             current_headers.append(new_column_name)
             self.tree_widget.setHeaderLabels(current_headers)
-            # for i in range(self.tree_widget.topLevelItemCount()):
-                # item = self.tree_widget.topLevelItem(i)
-                # item.addChild(QTreeWidgetItem([None]))
 
             self.new_column_input.clear()
 
@@ -143,8 +142,6 @@ class UserTreeView(QWidget):
                     self.tree_widget.setHeaderLabels([None])
                     self.columns = data.get("headers", ["Name", "Email", "Age"])  # Загружаем заголовки
                     self.tree_widget.setHeaderLabels(self.columns)  # Устанавливаем заголовки в виджет дерева
-                    # for user_data in data.get("users", []):
-                    #     self.add_user(user_data)
                 QMessageBox.information(self, "Success", "Layout loaded successfully.")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to load layout: {str(e)}")
