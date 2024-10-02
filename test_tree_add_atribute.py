@@ -1,8 +1,10 @@
 import sys
+import json
 import pandas as pd
 from PySide6.QtWidgets import (
     QApplication, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget,
-    QPushButton, QLineEdit, QDialog, QFormLayout, QDialogButtonBox
+    QPushButton, QLineEdit, QDialog, QFormLayout, QDialogButtonBox, QFileDialog,
+    QMessageBox
 )
 
 
@@ -46,12 +48,16 @@ class UserTreeView(QWidget):
         self.layout = QVBoxLayout(self)
 
         self.tree_widget = QTreeWidget()
-        self.tree_widget.setHeaderLabels(["Name", "Email", "Age"])  # Начальные столбцы
+        self.tree_widget.setHeaderLabels(["Name", "Email", "Age"])
         self.layout.addWidget(self.tree_widget)
 
         self.add_button = QPushButton("Add User", self)
         self.add_button.clicked.connect(self.open_user_dialog)
         self.layout.addWidget(self.add_button)
+
+        self.load_button = QPushButton("Load from Excel", self)
+        self.load_button.clicked.connect(self.load_from_excel)
+        self.layout.addWidget(self.load_button)
 
         self.new_column_input = QLineEdit(self)
         self.new_column_input.setPlaceholderText("Enter New Attribute")
@@ -61,39 +67,44 @@ class UserTreeView(QWidget):
         self.add_column_button.clicked.connect(self.add_column)
         self.layout.addWidget(self.add_column_button)
 
-        self.columns = ["Name", "Email", "Age"]  # Список столбцов
+        self.columns = ["Name", "Email", "Age"]
 
     def open_user_dialog(self):
-        dialog = UserDialog(self.columns, self.add_user)  # Передаем метод добавления пользователя
-        dialog.exec()  # Открываем диалог
+        dialog = UserDialog(self.columns, self.add_user)
+        dialog.exec()
 
     def add_user(self, user_data):
-        # Создаем элемент с данными пользователя
         user_item = QTreeWidgetItem([user_data.get("Name"), user_data.get("Email"), user_data.get("Age")])
-        
-        # Добавляем элемент в дерево
         self.tree_widget.addTopLevelItem(user_item)
 
-        # Обновляем значения для новых столбцов
         for i in range(3, len(self.columns)):
-            user_item.setText(i, user_data.get(self.columns[i], ""))  # Устанавливаем текст для новых столбцов
+            user_item.setText(i, user_data.get(self.columns[i], ""))
+
+    def load_from_excel(self):
+        options = QFileDialog.Options()
+        file_name, _ = QFileDialog.getOpenFileName(self, "Open Excel File", "", "Excel Files (*.xlsx);;All Files (*)", options=options)
+        if file_name:
+            try:
+                df = pd.read_excel(file_name)
+                for _, row in df.iterrows():
+                    user_data = {col: str(row[col]) for col in self.columns if col in row}
+                    self.add_user(user_data)
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to load data from Excel: {str(e)}")
 
     def add_column(self):
         new_column_name = self.new_column_input.text()
         if new_column_name:
-            # Добавляем новый заголовок
             self.columns.append(new_column_name)
             current_headers = [self.tree_widget.headerItem().text(i) for i in range(self.tree_widget.headerItem().columnCount())]
             current_headers.append(new_column_name)
             self.tree_widget.setHeaderLabels(current_headers)
 
-            # Добавляем пустые ячейки для нового столбца в каждом элементе
             for i in range(self.tree_widget.topLevelItemCount()):
                 item = self.tree_widget.topLevelItem(i)
-                item.addChild(QTreeWidgetItem([None]))  # Убираем это, чтобы не добавлять дочерние элементы
+                item.addChild(QTreeWidgetItem([None]))
 
             self.new_column_input.clear()
-
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = UserTreeView()
