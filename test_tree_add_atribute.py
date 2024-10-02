@@ -1,11 +1,13 @@
 import sys
+import pandas as pd
 from PySide6.QtWidgets import (
     QApplication, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget,
     QPushButton, QLineEdit, QDialog, QFormLayout, QDialogButtonBox
 )
 
+
 class UserDialog(QDialog):
-    def __init__(self, columns):
+    def __init__(self, columns, add_user_callback):
         super().__init__()
         self.setWindowTitle("Add User")
         self.layout = QFormLayout(self)
@@ -18,13 +20,18 @@ class UserDialog(QDialog):
             self.layout.addRow(column, input_field)
 
         self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
-        self.button_box.accepted.connect(self.accept)
+        self.button_box.accepted.connect(self.add_user)  # Изменяем здесь
         self.button_box.rejected.connect(self.reject)
         self.layout.addWidget(self.button_box)
-        
+
+        self.add_user_callback = add_user_callback  # Сохраняем коллбек для добавления пользователя
+
     def add_user(self):
-        # Сигнал для добавления пользователя
-        self.accept()  # Вызываем accept, чтобы сигнализировать о добавлении пользователя
+        user_data = self.get_user_data()
+        self.add_user_callback(user_data)  # Вызываем коллбек для добавления пользователя
+        # Очищаем поля ввода, но не закрываем диалог
+        for input_field in self.inputs.values():
+            input_field.clear()
 
     def get_user_data(self):
         return {column: input_field.text() for column, input_field in self.inputs.items()}
@@ -57,19 +64,13 @@ class UserTreeView(QWidget):
         self.columns = ["Name", "Email", "Age"]  # Список столбцов
 
     def open_user_dialog(self):
-        dialog = UserDialog(self.columns)
-        if dialog.exec() == QDialog.Accepted:
-            user_data = dialog.get_user_data()
-            self.add_user(user_data)
+        dialog = UserDialog(self.columns, self.add_user)  # Передаем метод добавления пользователя
+        dialog.exec()  # Открываем диалог
 
     def add_user(self, user_data):
         # Создаем элемент с данными пользователя
         user_item = QTreeWidgetItem([user_data.get("Name"), user_data.get("Email"), user_data.get("Age")])
         
-        # Добавляем новые атрибуты для новых столбцов
-        # for column in self.columns[3:]:  # Пропускаем первые три столбца
-            # user_item.addChild(QTreeWidgetItem([user_data.get(column, "")]))  # Убираем это, чтобы не добавлять дочерние элементы
-
         # Добавляем элемент в дерево
         self.tree_widget.addTopLevelItem(user_item)
 
