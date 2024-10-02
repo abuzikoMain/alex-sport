@@ -7,7 +7,6 @@ from PySide6.QtWidgets import (
     QMessageBox
 )
 
-
 class UserDialog(QDialog):
     def __init__(self, columns, add_user_callback):
         super().__init__()
@@ -59,6 +58,14 @@ class UserTreeView(QWidget):
         self.load_button.clicked.connect(self.load_from_excel)
         self.layout.addWidget(self.load_button)
 
+        self.save_layout_button = QPushButton("Save Layout", self)
+        self.save_layout_button.clicked.connect(self.save_layout)
+        self.layout.addWidget(self.save_layout_button)
+
+        self.load_layout_button = QPushButton("Load Layout", self)
+        self.load_layout_button.clicked.connect(self.load_layout)
+        self.layout.addWidget(self.load_layout_button)
+
         self.new_column_input = QLineEdit(self)
         self.new_column_input.setPlaceholderText("Enter New Attribute")
         self.layout.addWidget(self.new_column_input)
@@ -99,12 +106,50 @@ class UserTreeView(QWidget):
             current_headers = [self.tree_widget.headerItem().text(i) for i in range(self.tree_widget.headerItem().columnCount())]
             current_headers.append(new_column_name)
             self.tree_widget.setHeaderLabels(current_headers)
-
-            for i in range(self.tree_widget.topLevelItemCount()):
-                item = self.tree_widget.topLevelItem(i)
-                item.addChild(QTreeWidgetItem([None]))
+            # for i in range(self.tree_widget.topLevelItemCount()):
+                # item = self.tree_widget.topLevelItem(i)
+                # item.addChild(QTreeWidgetItem([None]))
 
             self.new_column_input.clear()
+
+    def save_layout(self):
+        options = QFileDialog.Options()
+        file_name, _ = QFileDialog.getSaveFileName(self, "Save Layout", "", "JSON Files (*.json);;All Files (*)", options=options)
+        if file_name:
+            try:
+                data = {
+                    "headers": self.columns,
+                    "users": []
+                }
+                for i in range(self.tree_widget.topLevelItemCount()):
+                    item = self.tree_widget.topLevelItem(i)
+                    user_data = {self.columns[j]: item.text(j) for j in range(len(self.columns))}
+                    data["users"].append(user_data)
+                
+                with open(file_name, 'w') as f:
+                    json.dump(data, f, indent=4)
+                QMessageBox.information(self, "Success", "Layout saved successfully.")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to save layout: {str(e)}")
+
+    def load_layout(self):
+        options = QFileDialog.Options()
+        file_name, _ = QFileDialog.getOpenFileName(self, "Load Layout", "", "JSON Files (*.json);;All Files (*)", options=options)
+        if file_name:
+            try:
+                with open(file_name, 'r') as f:
+                    data = json.load(f)
+                    self.tree_widget.clear()  # Очищаем текущее дерево
+                    self.tree_widget.setHeaderLabels([None])
+                    self.columns = data.get("headers", ["Name", "Email", "Age"])  # Загружаем заголовки
+                    self.tree_widget.setHeaderLabels(self.columns)  # Устанавливаем заголовки в виджет дерева
+                    # for user_data in data.get("users", []):
+                    #     self.add_user(user_data)
+                QMessageBox.information(self, "Success", "Layout loaded successfully.")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to load layout: {str(e)}")
+
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = UserTreeView()
