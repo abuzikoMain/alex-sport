@@ -4,8 +4,82 @@ import pandas as pd
 from PySide6.QtWidgets import (
     QApplication, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget,
     QPushButton, QLineEdit, QDialog, QFormLayout, QDialogButtonBox, QFileDialog,
-    QMessageBox
+    QMessageBox, QComboBox
 )
+
+class GroupingDialog(QDialog):
+    def __init__(self, users, columns):
+        super().__init__()
+        self.setWindowTitle("Grouping Users")
+        self.layout = QVBoxLayout(self)
+
+        self.group_size_input = QLineEdit(self)
+        self.group_size_input.setPlaceholderText("Enter Group Size (N)")
+        self.layout.addWidget(self.group_size_input)
+
+        self.age_difference_input = QLineEdit(self)
+        self.age_difference_input.setPlaceholderText("Enter Max Age Difference")
+        self.layout.addWidget(self.age_difference_input)
+
+        self.attribute_combo = QComboBox(self)
+        self.attribute_combo.addItems(columns)  # Добавляем доступные атрибуты для группировки
+        self.layout.addWidget(self.attribute_combo)
+
+        self.group_button = QPushButton("Group Users", self)
+        self.group_button.clicked.connect(self.group_users)
+        self.layout.addWidget(self.group_button)
+
+        self.result_tree_widget = QTreeWidget()
+        self.result_tree_widget.setHeaderLabels(["Group", "Users"])
+        self.layout.addWidget(self.result_tree_widget)
+
+        self.users = users  # Сохраняем список пользователей
+
+    def group_users(self):
+        group_size = self.group_size_input.text()
+        age_difference = self.age_difference_input.text()
+        selected_attribute = self.attribute_combo.currentText()
+
+        if not group_size.isdigit() or not age_difference.isdigit():
+            QMessageBox.warning(self, "Input Error", "Please enter valid numbers for group size and age difference.")
+            return
+
+        group_size = int(group_size)
+        age_difference = int(age_difference)
+
+        # Сортируем пользователей по возрасту
+        sorted_users = sorted(self.users, key=lambda item: int(item.text(2)))  # Предполагаем, что возраст находится в третьем столбце (индекс 2)
+
+        groups = []
+        current_group = []
+
+        for user in sorted_users:
+            if len(current_group) == 0:
+                current_group.append(user)
+            else:
+                # Проверяем разницу в возрасте
+                age_diff = int(user.text(2)) - int(current_group[0].text(2))
+                if age_diff <= age_difference and len(current_group) < group_size:
+                    current_group.append(user)
+                else:
+                    # Сохраняем текущую группу и начинаем новую
+                    groups.append(current_group)
+                    current_group = [user]
+
+        # Не забываем добавить последнюю группу, если она не пустая
+        if current_group:
+            groups.append(current_group)
+
+        self.display_groups(groups)
+
+    def display_groups(self, groups):
+        self.result_tree_widget.clear()
+        for index, group in enumerate(groups):
+            group_item = QTreeWidgetItem([f"Group {index + 1}"])
+            self.result_tree_widget.addTopLevelItem(group_item)
+            for item in group:
+                user_item = QTreeWidgetItem([item.text(0)])  # Копируем только имя пользователя
+                group_item.addChild(user_item)
 
 class UserDialog(QDialog):
     def __init__(self, columns, add_user_callback):
@@ -43,7 +117,7 @@ class UserTreeView(QWidget):
         self.init_ui()
 
         self.columns = ["Name", "Email", "Age"]
-        
+
     def init_ui(self):
         self.setWindowTitle("User Tree View")
         self.setGeometry(100, 100, 600, 400)
@@ -69,6 +143,11 @@ class UserTreeView(QWidget):
         self.load_layout_button = QPushButton("Load Layout", self)
         self.load_layout_button.clicked.connect(self.load_layout)
         self.layout.addWidget(self.load_layout_button)
+
+        # Добавляем кнопку для группировки
+        self.group_button = QPushButton("Group Users", self)
+        self.group_button.clicked.connect(self.open_grouping_dialog)
+        self.layout.addWidget(self.group_button)
 
         self.new_column_input = QLineEdit(self)
         self.new_column_input.setPlaceholderText("Enter New Attribute")
@@ -146,6 +225,10 @@ class UserTreeView(QWidget):
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to load layout: {str(e)}")
 
+    def open_grouping_dialog(self):
+        users = [self.tree_widget.topLevelItem(i) for i in range(self.tree_widget.topLevelItemCount())]
+        dialog = GroupingDialog(users, self.columns[2:])
+        dialog.exec()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
