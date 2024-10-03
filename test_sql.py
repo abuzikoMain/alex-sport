@@ -16,12 +16,12 @@ def creating_tables():
     conn = sqlite3.connect('your_database.db')
     cursor = conn.cursor()  
 
-    query = """CREATE TABLE Users (
+    query = """CREATE TABLE IF NOT EXISTS Users (
     id INTEGER PRIMARY KEY AUTOINCREMENT
     );"""
     cursor.execute(query)
 
-    query = """CREATE TABLE UserAttributes (
+    query = """CREATE TABLE IF NOT EXISTS UserAttributes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
     attribute_key TEXT NOT NULL,
@@ -29,6 +29,30 @@ def creating_tables():
     FOREIGN KEY (user_id) REFERENCES Users(id)
     );"""
     cursor.execute(query)
+
+    # Сохранение изменений и закрытие соединения
+    conn.commit()
+    conn.close()
+
+def insert_attribute(attribute_key, attribute_value=None):
+    conn = sqlite3.connect('your_database.db')
+    cursor = conn.cursor()  
+
+    # Запрос для получения последнего id
+    query = "SELECT MAX(id) FROM Users;"
+    cursor.execute(query)
+    user_ids = cursor.fetchone()[0] + 1
+
+    # Вставка атрибутов для каждого пользователя
+    for user_id in range(1, user_ids):
+        attributes = [
+            (user_id, attribute_key, attribute_value)
+        ]
+        cursor.executemany("INSERT INTO UserAttributes (user_id, attribute_key, attribute_value) VALUES (?, ?, ?);", attributes)
+
+    # Сохранение изменений и закрытие соединения
+    conn.commit()
+    conn.close()
 
 def insert_data():
     count = 10
@@ -72,15 +96,17 @@ def count_attributes():
     SELECT COUNT(DISTINCT attribute_key) AS unique_attribute_key_count
     FROM UserAttributes;"""
     cursor.execute(query)
-    count_atributes = cursor.fetchall()
-    if len(count_atributes) > 0:
-        count_atributes = count_atributes[0][0]
+    count_attributes = cursor.fetchall()
+    if len(count_attributes) > 0:
+        count_attributes = count_attributes[0][0]
+    else:
+        count_attributes = 0  # Если нет атрибутов, возвращаем 0
 
-    return count_atributes
+    return count_attributes
 
 def attributes() -> dict:
     attributes = {
-        "Вес": {"min": 50, "max": 60},
+        "Вес": {"min": 50, "max": 80},
         "Рост": {"min": 160, "max": 175}
     }
     return attributes
@@ -105,7 +131,7 @@ def build_query() -> tuple[str, list]:
     WHERE u.id IN {}
     """
 
-    condition = "(ua.attribute_key = ? AND CAST(ua.attribute_value AS INTEGER) > ? AND CAST(ua.attribute_value AS INTEGER) < ?)"
+    condition = "(ua.attribute_key = ? AND CAST(ua.attribute_value AS INTEGER) >= ? AND CAST(ua.attribute_value AS INTEGER) <= ?)"
 
     # Список условий для запроса
     params = []
@@ -115,7 +141,7 @@ def build_query() -> tuple[str, list]:
         temp_query.append(sub_query.format(condition))
         params.extend([attribute, limits["min"], limits["max"]])
     
-    where_clause = " AND ".join(temp_query)
+    where_clause = " AND u.id IN".join(temp_query)
     final_query = base_query.format(where_clause)
 
     return final_query, params
@@ -162,12 +188,19 @@ def grouping():
     query, params = build_query()
     cursor.execute(query, params)
     users = cursor.fetchall()
+    if not users:
+        return
 
     query, user_ids = build_query_users_attributes(users)
     cursor.execute(query, user_ids)
     user_attributes = cursor.fetchall()
+    if not user_attributes:
+        return
 
     count_atributes = count_attributes()
+    if not count_atributes:
+        return
+    
     # Разделение на группы
     groups = [user_attributes[i:i + count_atributes] for i in range(0, len(user_attributes), count_atributes)]
     random.shuffle(groups)
@@ -185,4 +218,5 @@ if __name__ == "__main__":
     # creating_tables()
     # insert_data()
     grouping()
+    # insert_attribute("Test")
 
