@@ -124,13 +124,10 @@ class EditDialog(QDialog):
 
         self.layout = QFormLayout(self)
         self.inputs = {}
-        
+
         self._headers = headers.copy()
-        # for header, value in zip(headers, data):
-        #     line_edit = QLineEdit(self)
-        #     line_edit.setText(str(value))
-        #     self.inputs.append(line_edit)
-        #     self.layout.addRow(QLabel(header), line_edit)
+        self._data = data.copy()
+
         if data:
             for header, value in data.items():
                 if header:
@@ -175,7 +172,6 @@ class AddColumnDialog(QDialog):
         return self.column_name_input.text()
 
 # Модель данных для QTableView
-# Модель данных для QTableView
 class UserTableModel(QAbstractTableModel):
     def __init__(self, data, headers):
         super().__init__()
@@ -194,19 +190,19 @@ class UserTableModel(QAbstractTableModel):
         if self.copied_data is not None:
             for i, row_data in enumerate(self.copied_data):
                 # Если текущая строка + i превышает количество строк в данных, добавляем новую строку
-                if row + i + 1 not in self._data:
+                if row + i not in self._data:
                     self.addRow()  # Используем метод addRow для добавления новой строки
 
                 # Вставляем данные в соответствующие ячейки
                 for j, value in enumerate(row_data):
                     if column + j < len(self._headers):
-                        self._data[row + i + 1][self._headers[column + j]] = value
+                        self._data[row + i][self._headers[column + j]] = value
 
             # Уведомляем об изменении данных
             self.dataChanged.emit(self.index(row, 0), self.index(row + len(self.copied_data) - 1, len(self._headers) - 1))
 
     def addRow(self):
-        new_row_id = len(self._data)  # Используем новый ID для строки
+        new_row_id = len(self._data) # Используем новый ID для строки
         self.beginInsertRows(self.index(len(self._data), 0), len(self._data), len(self._data))
         self._data[new_row_id] = {header: "" for header in self._headers}  # Добавляем пустую строку
         self.endInsertRows()
@@ -239,7 +235,7 @@ class UserTableModel(QAbstractTableModel):
     def data(self, index, role=Qt.DisplayRole):
         if index.isValid():
             if role == Qt.DisplayRole or role == Qt.EditRole:
-                row = self._data.get(index.row() + 1, False)
+                row = self._data.get(index.row(), False)
                 if row:
                     value = row.get(self._headers[index.column()], "") 
                     return str(value)
@@ -249,7 +245,7 @@ class UserTableModel(QAbstractTableModel):
 
     def setData(self, index, value, role):
         if role == Qt.EditRole:
-            self._data[index.row() + 1][self._headers[index.column()]] = value
+            self._data[index.row() ][self._headers[index.column()]] = value
             return True
         return False
     
@@ -257,7 +253,6 @@ class UserTableModel(QAbstractTableModel):
         return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable
 
     def editData(self, row):
-        row = row + 1
         dialog = EditDialog(self._data[row], self._headers)
         if dialog.exec() == QDialog.Accepted:
             new_values = dialog.getValues()
@@ -295,56 +290,52 @@ class MainWindow(QMainWindow):
         # Список для хранения групп условий
         self.condition_groups = []
 
-        # Данные для таблицы
-        self.data = [
-            ["Алексей", 25, "Москва"],
-            ["Мария", 30, "Санкт-Петербург"],
-            ["Иван", 22, "Екатеринбург"],
-            ["Ольга", 28, "Казань"]
-        ]
-
         # Создаем меню
-        self.menu_bar = self.menuBar()
-        self.file_menu = QMenu("Файл", self)
-        self.menu_bar.addMenu(self.file_menu)
+        self.menu_bar_file = self.menuBar()
+        self.file_menu_file = QMenu("Файл", self)
+        self.menu_bar_file.addMenu(self.file_menu_file)
+
+        self.menu_bar_action = self.menuBar()
+        self.file_menu_action = QMenu("Действия", self)
+        self.menu_bar_action.addMenu(self.file_menu_action)
 
         # Добавляем действия в меню
         self.add_column_action = QAction("Добавить колонку", self)
-        self.file_menu.addAction(self.add_column_action)
+        self.file_menu_action.addAction(self.add_column_action)
 
         self.remove_column_action = QAction("Удалить колонку", self)
-        self.file_menu.addAction(self.remove_column_action)
+        self.file_menu_action.addAction(self.remove_column_action)
 
         # В конструкторе MainWindow
         self.add_row_action = QAction("Добавить строку", self)
         self.add_row_action.setShortcut("Ctrl+D") 
-        self.file_menu.addAction(self.add_row_action)
+        self.file_menu_action.addAction(self.add_row_action)
 
         self.remove_row_action = QAction("Удалить строку", self)
         self.remove_row_action.setShortcut("Delete") 
-        self.file_menu.addAction(self.remove_row_action)
+        self.file_menu_action.addAction(self.remove_row_action)
 
         self.copy_action = QAction("Копировать", self)
         self.copy_action.setShortcut("Ctrl+C") 
-        self.file_menu.addAction(self.copy_action)
+        self.file_menu_action.addAction(self.copy_action)
 
         self.paste_action = QAction("Вставить", self)
         self.paste_action.setShortcut("Ctrl+V") 
-        self.file_menu.addAction(self.paste_action)
-
-        # # Также добавьте кнопку на интерфейс
-        self.add_row_button = QAction("Добавить строку", self)
-        self.menu_bar.addAction(self.add_row_button)  # Добавьте кнопку в layout
+        self.file_menu_action.addAction(self.paste_action)
 
         self.load_excel_action = QAction("Загрузить из Excel", self)
         # self.load_excel_action.triggered.connect(self.loadDataFromExcel)
-        self.file_menu.addAction(self.load_excel_action)
+        self.file_menu_file.addAction(self.load_excel_action)
 
         self.conditions_action = QAction("Условия", self)
-        self.file_menu.addAction(self.conditions_action)
+        self.file_menu_file.addAction(self.conditions_action)
 
         self.exit_action = QAction("Выход", self)
-        self.file_menu.addAction(self.exit_action)
+        self.file_menu_file.addAction(self.exit_action)
+
+        # # # Также добавьте кнопку на интерфейс
+        self.add_row_button = QAction("Добавить строку", self)
+        self.menu_bar_action.addAction(self.add_row_button)  # Добавьте кнопку в layout        
 
         # Создаем модель и таблицу
         self.table_view = QTableView()
@@ -372,13 +363,6 @@ class Controller:
         self.attribute_manager = AttributeManager(db)
 
         # insert_data(self.user_manager, self.attribute_manager)
-    
-        # self.data = [
-        #     ["Алексей", 25, "Москва"],
-        #     ["Мария", 30, "Санкт-Петербург"],
-        #     ["Иван", 22, "Екатеринбург"],
-        #     ["Ольга", 28, "Казань"]
-        # ]
 
         self.data = self.user_manager.select_all()
         self.headers = self.attribute_manager.names_all_attributes()
@@ -393,6 +377,7 @@ class Controller:
         # Подключаем действия интерфейса к методам контроллера
         self.window.add_column_action.triggered.connect(self.add_column)
         self.window.add_row_action.triggered.connect(self.add_row)
+        self.window.add_row_button.triggered.connect(self.add_row)
         self.window.copy_action.triggered.connect(self.copy_data)
         self.window.paste_action.triggered.connect(self.paste_data)
         self.window.conditions_action.triggered.connect(self.open_conditions_dialog)
@@ -400,6 +385,13 @@ class Controller:
         self.window.table_view.doubleClicked.connect(self.onCellDoubleClicked)
         self.window.remove_column_action.triggered.connect(self.removeColumn)
         self.window.remove_row_action.triggered.connect(self.removeRow)
+        self.window.table_view.clicked.connect(self.output_selected)
+
+        self.num = 0
+
+    def output_selected(self):
+        print(f"{self.num} : {self.window.table_view.selectedIndexes()}")
+        self.num += 1
 
     def select_all_from_table(self):
         test = self.user_manager.select_all()
@@ -411,7 +403,6 @@ class Controller:
             column_name = self.dialog.getColumnName()
             if column_name:
                 self.model.addColumn(column_name)
-                # self.window.updateTableView()
 
     def removeColumn(self):
         # Получаем индексы выделенных колонок
@@ -437,7 +428,7 @@ class Controller:
     def copy_data(self):
         selected_indexes = self.window.table_view.selectedIndexes()
         if selected_indexes:
-            rows = set(index.row() + 1 for index in selected_indexes)
+            rows = set(index.row() for index in selected_indexes)
             columns = set(index.column() for index in selected_indexes)
             self.model.copyData(rows, columns)
 
@@ -445,6 +436,7 @@ class Controller:
         selected_index = self.window.table_view.currentIndex()
         if selected_index.isValid():
             self.model.pasteData(selected_index.row(), selected_index.column())
+        self.window.table_view.clearSelection()
 
     def open_conditions_dialog(self):
         headers = self.model._headers  # Получаем заголовки из модели
@@ -469,6 +461,9 @@ class Controller:
         # Удаляем строки из модели, начиная с конца, чтобы не нарушить индексы
         for row in rows_to_remove:
             self.model.removeRow(row)
+
+    def save_in_db(self):
+        ...
 
 
     def run(self):
