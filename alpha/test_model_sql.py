@@ -37,23 +37,42 @@ class UserManager:
     def __init__(self, db: Database):
         self.db = db
 
-    def select_all(self):
+    def select_all(self, return_type: str = None):
+        """
+        return_type: str 'dict' or 'list'
+        """
         query = """
         SELECT 
             u.id AS user_id,
-            udb.date_of_birth,
-            GROUP_CONCAT(ua.attribute_key || ': ' || ua.attribute_value, ', ') AS attributes
+            ua.attribute_key,
+            ua.attribute_value
         FROM 
             Users u
         LEFT JOIN 
-            UserAttributes ua ON u.id = ua.user_id
-        LEFT JOIN 
-            UserDateBirth udb ON u.id = udb.user_id
-        GROUP BY 
-            u.id, udb.date_of_birth;
+            UserAttributes ua ON u.id = ua.user_id   
         """
         self.db.cursor.execute(query)
-        users = self.db.cursor.fetchall()
+        users_attributes = self.db.cursor.fetchall()
+
+        query = """
+        SELECT 
+            u.id AS user_id,
+            ud.date_of_birth
+        FROM 
+            Users u
+        LEFT JOIN 
+            UserDateBirth ud ON u.id = ud.user_id
+        GROUP BY 
+            u.id;    
+        """
+
+        users = {}
+
+        for user_id, attribute_key, attribute_value in users_attributes:
+            if user_id - 1 not in users:
+                users[user_id - 1] = {}
+            users[user_id - 1][attribute_key] = attribute_value
+        # {row_id: {header_name: value, header_name: value}, row_id: {header_name: value}}
         return users
 
     def select_user(self, user_id):
@@ -255,9 +274,11 @@ class AttributeManager:
     def names_all_attributes(self):
         query = """
         SELECT attribute_name AS unique_attribute_key_count
-        FROM Attributes;"""
+        FROM Attributes
+        ORDER BY id ASC;"""
         self.db.cursor.execute(query)
         names_attributes = self.db.cursor.fetchall()
+        names_attributes = [item[0] for item in names_attributes]
         return names_attributes
 
 
@@ -313,8 +334,6 @@ class TableManager:
         self.db.cursor.execute("DROP TABLE IF EXISTS Users;")
         self.db.commit()
         print("Все таблицы успешно сброшены.")
-
-
 
 
 if __name__ == "__main__":
