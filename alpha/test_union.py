@@ -10,6 +10,17 @@ from PySide6.QtGui import (QAction, QStandardItem, QStandardItemModel,
                            QIcon)
 from test_model_sql import *
 
+# Список из 30 имен
+names = [
+    "Александр", "Мария", "Дмитрий", "Елена", "Сергей",
+    "Анна", "Иван", "Ольга", "Максим", "Татьяна",
+    "Анастасия", "Николай", "Екатерина", "Павел", "Юлия",
+    "Владимир", "Светлана", "Роман", "Дарья", "Артем",
+    "Ксения", "Игорь", "Людмила", "Станислав", "Наталья",
+    "Григорий", "Виктория", "Алексей", "Евгения", "Константин"
+]
+
+
 class ConditionGroupDialog(QDialog):
     def __init__(self, headers, groups):
         super().__init__()
@@ -112,20 +123,26 @@ class EditDialog(QDialog):
         self.setFixedSize(300, 200)
 
         self.layout = QFormLayout(self)
-        self.inputs = []
+        self.inputs = {}
 
-        for header, value in zip(headers, data):
+        # for header, value in zip(headers, data):
+        #     line_edit = QLineEdit(self)
+        #     line_edit.setText(str(value))
+        #     self.inputs.append(line_edit)
+        #     self.layout.addRow(QLabel(header), line_edit)
+
+        for header, value in data.items():
             line_edit = QLineEdit(self)
             line_edit.setText(str(value))
-            self.inputs.append(line_edit)
-            self.layout.addRow(QLabel(header), line_edit)
+            self.inputs[header] = line_edit
+            self.layout.addRow(QLabel(header), line_edit)        
 
         self.save_button = QPushButton("Сохранить", self)
         self.save_button.clicked.connect(self.accept)
         self.layout.addRow(self.save_button)
 
     def getValues(self):
-        return [input.text() for input in self.inputs]
+        return {key:value.text() for key, value in self.inputs.items()}
 
 # Диалог для ввода имени колонки
 class AddColumnDialog(QDialog):
@@ -146,42 +163,44 @@ class AddColumnDialog(QDialog):
         return self.column_name_input.text()
 
 # Модель данных для QTableView
+# Модель данных для QTableView
 class UserTableModel(QAbstractTableModel):
-    def __init__(self, data):
+    def __init__(self, data, headers):
         super().__init__()
-        self._data = data
-        self._headers = ["Имя", "Возраст", "Город"]
+        self._data = data  # Данные в формате {row_id: {header_name: value}}
+        self._headers = headers
         self.copied_data = None  # Для хранения скопированных данных
 
     # Метод для копирования данных
     def copyData(self, rows, columns):
         self.copied_data = []
         for row in rows:
-            row_data = [self._data[row][col] for col in columns]
+            row_data = [self._data[row].get(self._headers[col], "") for col in columns]
             self.copied_data.append(row_data)
 
     def pasteData(self, row, column):
         if self.copied_data is not None:
             for i, row_data in enumerate(self.copied_data):
                 # Если текущая строка + i превышает количество строк в данных, добавляем новую строку
-                if row + i >= len(self._data):
+                if row + i not in self._data:
                     self.addRow()  # Используем метод addRow для добавления новой строки
 
                 # Вставляем данные в соответствующие ячейки
                 for j, value in enumerate(row_data):
                     if column + j < len(self._headers):
-                        self._data[row + i][column + j] = value
+                        self._data[row + i][self._headers[column + j]] = value
 
             # Уведомляем об изменении данных
             self.dataChanged.emit(self.index(row, 0), self.index(row + len(self.copied_data) - 1, len(self._headers) - 1))
 
     def addRow(self):
+        new_row_id = len(self._data)  # Используем новый ID для строки
         self.beginInsertRows(self.index(len(self._data), 0), len(self._data), len(self._data))
-        self._data.append(["", "", ""])  # Добавляем пустую строку
+        self._data[new_row_id] = {header: "" for header in self._headers}  # Добавляем пустую строку
         self.endInsertRows()
 
     def removeRow(self, row):
-        if row < 0 or row >= len(self._data):
+        if row not in self._data:
             return  # Проверка на допустимость индекса строки
 
         self.beginRemoveRows(self.index(row, 0), row, row)
@@ -195,7 +214,7 @@ class UserTableModel(QAbstractTableModel):
         return len(self._data)
 
     def columnCount(self, parent=None):
-        return len(self._data[0]) if self._data else 0
+        return len(self._headers)
 
     def headerData(self, section, orientation, role=Qt.DisplayRole):
         if role == Qt.DisplayRole:
@@ -208,14 +227,17 @@ class UserTableModel(QAbstractTableModel):
     def data(self, index, role=Qt.DisplayRole):
         if index.isValid():
             if role == Qt.DisplayRole or role == Qt.EditRole:
-                value = self._data[index.row()][index.column()]
-                return str(value)
+                row = self._data.get(index.row() + 1, False)
+                if row:
+                    value = row.get(self._headers[index.column()], "") 
+                    return str(value)
+                
             elif role == Qt.TextAlignmentRole:
                 return Qt.AlignCenter
 
     def setData(self, index, value, role):
         if role == Qt.EditRole:
-            self._data[index.row()][index.column()] = value
+            self._data[index.row() + 1][self._headers[index.column()]] = value
             return True
         return False
     
@@ -223,19 +245,18 @@ class UserTableModel(QAbstractTableModel):
         return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable
 
     def editData(self, row):
+        row = row + 1
         dialog = EditDialog(self._data[row], self._headers)
         if dialog.exec() == QDialog.Accepted:
             new_values = dialog.getValues()
             self._data[row] = new_values
             self.dataChanged.emit(self.index(row, 0), self.index(row, len(self._headers) - 1))
-    def flags(self, index):
-        return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable
 
     def addColumn(self, header):
         self.beginInsertColumns(self.index(0, len(self._headers)), len(self._headers), len(self._headers))
         self._headers.append(header)
-        for row in self._data:
-            row.append("")  # Добавляем пустое значение для новой колонки
+        for row in self._data.values():
+            row[header] = ""  # Добавляем пустое значение для новой колонки
         self.endInsertColumns()
 
     def removeColumn(self, column):
@@ -243,13 +264,7 @@ class UserTableModel(QAbstractTableModel):
             return  # Проверка на допустимость индекса колонки
 
         self.beginRemoveColumns(self.index(0, column), column, column)
-        del self._headers[column]  # Удаляем заголовок колонки
-        for row in self._data:
-            del row[column]  # Удаляем данные в каждой строке
-        self.endRemoveColumns()
 
-        # Уведомляем об изменении данных
-        self.layoutChanged.emit()
     def loadDataFromExcel(self, file_path):
         # Считываем данные из Excel, начиная с первой строки и первого столбца
         df = pd.read_excel(file_path, header=0)  # Укажите нужный номер строки для заголовков
@@ -336,18 +351,29 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(container)
 
 class Controller:
-    def __init__(self):
+    def __init__(self, db):
         
-        self.data = [
-            ["Алексей", 25, "Москва"],
-            ["Мария", 30, "Санкт-Петербург"],
-            ["Иван", 22, "Екатеринбург"],
-            ["Ольга", 28, "Казань"]
-        ]
+        self.table_manager = TableManager(db)
+        self.table_manager.create_tables()
+        self.user_manager = UserManager(db)
+
+        self.attribute_manager = AttributeManager(db)
+
+        # insert_data(self.user_manager, self.attribute_manager)
+    
+        # self.data = [
+        #     ["Алексей", 25, "Москва"],
+        #     ["Мария", 30, "Санкт-Петербург"],
+        #     ["Иван", 22, "Екатеринбург"],
+        #     ["Ольга", 28, "Казань"]
+        # ]
+
+        self.data = self.user_manager.select_all()
+        self.headers = self.attribute_manager.names_all_attributes()
         self.condition_groups = []
         
         # Инициализация модели с данными
-        self.model = UserTableModel(self.data)
+        self.model = UserTableModel(self.data, self.headers)
         self.window = MainWindow(self.model)
         # self.window.model = self.model  # Передаем модель в окно
         self.dialog = AddColumnDialog()
@@ -362,6 +388,11 @@ class Controller:
         self.window.table_view.doubleClicked.connect(self.onCellDoubleClicked)
         self.window.remove_column_action.triggered.connect(self.removeColumn)
         self.window.remove_row_action.triggered.connect(self.removeRow)
+
+    def select_all_from_table(self):
+        test = self.user_manager.select_all()
+        headers = self.attribute_manager.names_all_attributes()
+        a = 0
 
     def add_column(self):
         if self.dialog.exec() == QDialog.Accepted:
@@ -431,6 +462,28 @@ class Controller:
     def run(self):
         self.window.show()
 
+def insert_data(user_manager: UserManager, attribute_manager: AttributeManager):    
+    count = 9
+
+    name = "Имя"
+    weight = "Вес"
+    height = "Рост"
+
+    for _ in range(count):
+        user_manager.create_user({})
+
+    attribute_manager.create_attribute("Имя")
+    attribute_manager.create_attribute("Вес")
+    attribute_manager.create_attribute("Рост")            
+
+    for user_id in range(1, count + 1):
+        random_name = random.choice(names)
+        random_weight = random.randint(50, 95)
+        random_height = random.randint(150, 190)
+
+        user_manager.change_attribute_value(user_id, random_name, name)
+        user_manager.change_attribute_value(user_id, random_weight, weight)
+        user_manager.change_attribute_value(user_id, random_height, height)
 
 
 def main():
@@ -467,14 +520,8 @@ def main():
 # Запуск приложения
 if __name__ == "__main__":
     db = Database('your_database.db')
-    table_manager = TableManager(db)
-    table_manager.create_tables()
-    user_manager = UserManager(db)
-    user_manager.create_user({})
-    attribute_manager = AttributeManager(db)
-
     app = QApplication(sys.argv)  # Создаем экземпляр QApplication
-    controller = Controller()      # Создаем экземпляр контроллера
+    controller = Controller(db)      # Создаем экземпляр контроллера
     controller.run()               # Запускаем приложение
     sys.exit(app.exec())
 
