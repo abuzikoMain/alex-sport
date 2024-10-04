@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QAbstractTableModel
 from PySide6.QtGui import (QAction, QStandardItem, QStandardItemModel,
                            QIcon)
+from test_model_sql import *
 
 class ConditionGroupDialog(QDialog):
     def __init__(self, headers, groups):
@@ -354,22 +355,39 @@ class MainWindow(QMainWindow):
 def main():
     app = QApplication(sys.argv)
 
+    db = Database('your_database.db')
+    table_manager = TableManager(db)
+    table_manager.create_tables()
+    user_manager = UserManager(db)
+    user_manager.create_user({})
+    attribute_manager = AttributeManager(db)
+
     # Получаем список доступных экранов
     screens = app.screens()
 
-    if len(screens) > 1:
-        # Получаем второй экран
-        second_screen = screens[1]
-        # Получаем геометрию второго экрана
-        screen_geometry = second_screen.geometry()
-        # Создаем главное окно
-        window = MainWindow()
-        # Устанавливаем позицию окна на втором мониторе
-        window.setGeometry(screen_geometry)
-        window.move(screen_geometry.x(), screen_geometry.y())
-    else:
-        print("Второй монитор не обнаружен.")
-        return
+    second_screen = screens[0]
+    # Получаем геометрию второго экрана
+    screen_geometry = second_screen.geometry()
+    # Создаем главное окно
+    window = MainWindow()
+    # Устанавливаем позицию окна на втором мониторе
+    window.setGeometry(screen_geometry)
+    window.move(screen_geometry.x(), screen_geometry.y())
+
+    # if len(screens) > 1:
+
+    #     # Получаем второй экран
+    #     second_screen = screens[1]
+    #     # Получаем геометрию второго экрана
+    #     screen_geometry = second_screen.geometry()
+    #     # Создаем главное окно
+    #     window = MainWindow()
+    #     # Устанавливаем позицию окна на втором мониторе
+    #     window.setGeometry(screen_geometry)
+    #     window.move(screen_geometry.x(), screen_geometry.y())
+    # else:
+    #     print("Второй монитор не обнаружен.")
+    #     return
 
     window.show()
     sys.exit(app.exec())
