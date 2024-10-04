@@ -427,11 +427,6 @@ class Controller:
     def output_selected(self):
         print(self.model.output_data())
 
-    def select_all_from_table(self):
-        test = self.user_manager.select_all()
-        headers = self.attribute_manager.names_all_attributes()
-        a = 0
-
     def add_column(self):
         if self.dialog.exec() == QDialog.Accepted:
             column_name = self.dialog.getColumnName()
