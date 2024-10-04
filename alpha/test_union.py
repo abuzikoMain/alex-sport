@@ -130,6 +130,8 @@ class EditDialog(QDialog):
 
         if data:
             for header, value in data.items():
+                if header == 'changed':
+                    continue
                 if header:
                     line_edit = QLineEdit(self)
                     line_edit.setText(str(value))
@@ -173,11 +175,38 @@ class AddColumnDialog(QDialog):
 
 # Модель данных для QTableView
 class UserTableModel(QAbstractTableModel):
-    def __init__(self, data, headers):
+    def __init__(self, headers):
         super().__init__()
-        self._data = data  # Данные в формате {row_id: {header_name: value}}
+        self._data = {}
+        # Данные в формате {row_id: {header_name: value}}
         self._headers = headers
         self.copied_data = None  # Для хранения скопированных данных
+
+    @property
+    def datas(self):
+        return self._data
+    
+    @datas.setter
+    def datas(self, var):
+        if isinstance(var, dict): 
+            for each in var:
+                var[each]['changed'] = False
+            self._data = var
+        if isinstance(var, tuple):
+            key, value = var
+            if not key in self._data:
+                value['changed'] = False
+                self._data[key] = value
+            if key in self._data:
+                self.change_status_changed(self._data[key])
+                for each, new_value in value.items():
+                    self._data[key][each] = new_value 
+                
+    def change_status_changed(self, data: dict):
+        if data['changed'] == True:
+            data['changed'] = False
+        elif data['changed'] == False:
+            data['changed'] = True
 
     # Метод для копирования данных
     def copyData(self, rows, columns):
@@ -193,10 +222,12 @@ class UserTableModel(QAbstractTableModel):
                 if row + i not in self._data:
                     self.addRow()  # Используем метод addRow для добавления новой строки
 
+                input = {}
                 # Вставляем данные в соответствующие ячейки
-                for j, value in enumerate(row_data):
-                    if column + j < len(self._headers):
-                        self._data[row + i][self._headers[column + j]] = value
+                for key, value in zip(self._headers, row_data):
+                    input[key] = value                        
+
+                self.datas = (row + i, input)
 
             # Уведомляем об изменении данных
             self.dataChanged.emit(self.index(row, 0), self.index(row + len(self.copied_data) - 1, len(self._headers) - 1))
@@ -204,7 +235,8 @@ class UserTableModel(QAbstractTableModel):
     def addRow(self):
         new_row_id = len(self._data) # Используем новый ID для строки
         self.beginInsertRows(self.index(len(self._data), 0), len(self._data), len(self._data))
-        self._data[new_row_id] = {header: "" for header in self._headers}  # Добавляем пустую строку
+        self.datas = (new_row_id, {header: "" for header in self._headers})  # Добавляем пустую строку
+        self.change_status_changed(self._data[new_row_id])
         self.endInsertRows()
 
     def removeRow(self, row):
@@ -256,7 +288,7 @@ class UserTableModel(QAbstractTableModel):
         dialog = EditDialog(self._data[row], self._headers)
         if dialog.exec() == QDialog.Accepted:
             new_values = dialog.getValues()
-            self._data[row] = new_values
+            self.datas = (row, new_values)
             self.dataChanged.emit(self.index(row, 0), self.index(row, len(self._headers) - 1))
 
     def addColumn(self, header):
@@ -269,7 +301,6 @@ class UserTableModel(QAbstractTableModel):
     def removeColumn(self, column):
         if column < 0 or column >= len(self._headers):
             return  # Проверка на допустимость индекса колонки
-
         self.beginRemoveColumns(self.index(0, column), column, column)
 
     def loadDataFromExcel(self, file_path):
@@ -278,6 +309,9 @@ class UserTableModel(QAbstractTableModel):
         self._headers = df.columns.tolist()
         self._data = df.values.tolist()
         self.layoutChanged.emit()  # Обновляем представление
+
+    def output_data(self):
+        return self._data
 
 # Основное окно приложения
 class MainWindow(QMainWindow):
@@ -369,7 +403,8 @@ class Controller:
         self.condition_groups = []
         
         # Инициализация модели с данными
-        self.model = UserTableModel(self.data, self.headers)
+        self.model = UserTableModel(self.headers)
+        self.model.datas = self.data
         self.window = MainWindow(self.model)
         # self.window.model = self.model  # Передаем модель в окно
         self.dialog = AddColumnDialog()
@@ -390,8 +425,7 @@ class Controller:
         self.num = 0
 
     def output_selected(self):
-        print(f"{self.num} : {self.window.table_view.selectedIndexes()}")
-        self.num += 1
+        print(self.model.output_data())
 
     def select_all_from_table(self):
         test = self.user_manager.select_all()
@@ -462,7 +496,7 @@ class Controller:
         for row in rows_to_remove:
             self.model.removeRow(row)
 
-    def save_in_db(self):
+    def save_data_table(self):
         ...
 
 
@@ -491,7 +525,6 @@ def insert_data(user_manager: UserManager, attribute_manager: AttributeManager):
         user_manager.change_attribute_value(user_id, random_name, name)
         user_manager.change_attribute_value(user_id, random_weight, weight)
         user_manager.change_attribute_value(user_id, random_height, height)
-
 
 def main():
     app = QApplication(sys.argv)
