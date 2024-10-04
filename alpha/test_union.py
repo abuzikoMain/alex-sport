@@ -117,25 +117,37 @@ class ConditionGroupDialog(QDialog):
             self.create_button.clicked.connect(lambda: self.createGroup(groups))  # Подключаем обратно
 
 class EditDialog(QDialog):
-    def __init__(self, data, headers):
+    def __init__(self, data: dict, headers: list):
         super().__init__()
         self.setWindowTitle("Редактирование данных")
         self.setFixedSize(300, 200)
 
         self.layout = QFormLayout(self)
         self.inputs = {}
-
+        
+        self._headers = headers.copy()
         # for header, value in zip(headers, data):
         #     line_edit = QLineEdit(self)
         #     line_edit.setText(str(value))
         #     self.inputs.append(line_edit)
         #     self.layout.addRow(QLabel(header), line_edit)
+        if data:
+            for header, value in data.items():
+                if header:
+                    line_edit = QLineEdit(self)
+                    line_edit.setText(str(value))
+                    self.inputs[header] = line_edit
+                    self.layout.addRow(QLabel(header), line_edit)
+                    if header in self._headers:
+                        index = self._headers.index(header)
+                        self._headers.pop(index)
 
-        for header, value in data.items():
-            line_edit = QLineEdit(self)
-            line_edit.setText(str(value))
-            self.inputs[header] = line_edit
-            self.layout.addRow(QLabel(header), line_edit)        
+        if self._headers:
+            for header in self._headers:
+                line_edit = QLineEdit(self)
+                self.inputs[header] = line_edit
+                self.layout.addRow(QLabel(header), line_edit)
+
 
         self.save_button = QPushButton("Сохранить", self)
         self.save_button.clicked.connect(self.accept)
@@ -182,13 +194,13 @@ class UserTableModel(QAbstractTableModel):
         if self.copied_data is not None:
             for i, row_data in enumerate(self.copied_data):
                 # Если текущая строка + i превышает количество строк в данных, добавляем новую строку
-                if row + i not in self._data:
+                if row + i + 1 not in self._data:
                     self.addRow()  # Используем метод addRow для добавления новой строки
 
                 # Вставляем данные в соответствующие ячейки
                 for j, value in enumerate(row_data):
                     if column + j < len(self._headers):
-                        self._data[row + i][self._headers[column + j]] = value
+                        self._data[row + i + 1][self._headers[column + j]] = value
 
             # Уведомляем об изменении данных
             self.dataChanged.emit(self.index(row, 0), self.index(row + len(self.copied_data) - 1, len(self._headers) - 1))
@@ -425,7 +437,7 @@ class Controller:
     def copy_data(self):
         selected_indexes = self.window.table_view.selectedIndexes()
         if selected_indexes:
-            rows = set(index.row() for index in selected_indexes)
+            rows = set(index.row() + 1 for index in selected_indexes)
             columns = set(index.column() for index in selected_indexes)
             self.model.copyData(rows, columns)
 
