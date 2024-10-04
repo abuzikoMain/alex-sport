@@ -1,2 +1,5 @@
 venv/pyvenv.cfg
 venv/*
+alpha/__pycache__
+__pycache__/*
+
