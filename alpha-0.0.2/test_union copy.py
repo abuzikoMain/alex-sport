@@ -69,6 +69,20 @@ class UserTableModel(QAbstractTableModel):
         self._headers = headers
         self.copied_data = None  # Для хранения скопированных данных
 
+    def get_data(self):
+        return self._data
+    
+    def set_data(self, row_id, value):
+        if self._data.get(row_id, False):
+            self._data[row_id] = value
+            self.dataChanged.emit(self.index(row_id, 0), self.index(row_id, len(self._headers) - 1))
+        else:
+            raise KeyError("Row ID does not exist.")
+        
+    def del_data(self, row_id):
+        if self._data.get(row_id, False):
+            del self._data[row_id]
+
     def get_headers(self):
         return self._headers
 
@@ -96,7 +110,7 @@ class UserTableModel(QAbstractTableModel):
                 raise IndexError("Вставляемые данные выходят за пределы существующих заголовков.")
 
             inputs = dict(zip(self._headers[column:column + len(row_data)], row_data))
-            self._data.data = (target_row, inputs)
+            self.set_data(target_row, inputs)
 
         # Уведомляем об изменении данных
         self.dataChanged.emit(self.index(row, 0), self.index(row + len(self.copied_data) - 1, len(self._headers) - 1))
@@ -104,9 +118,8 @@ class UserTableModel(QAbstractTableModel):
 
     def addRow(self):
         new_row_id = len(self._data) # Используем новый ID для строки
-        self.beginInsertRows(self.index(len(self._data), 0), len(self._data), len(self._data))
-        self._data.data = (new_row_id, {header: "" for header in self._headers})  # Добавляем пустую строку
-        # self.change_status_changed(self._data[new_row_id])
+        self._data[new_row_id] = {header: "" for header in self._headers}  # Добавляем пустую строку
+        self.beginInsertRows(self.index(len(self._data), 0), len(self._data), len(self._data))        
         self.endInsertRows()
 
     def removeRow(self, row):
@@ -114,11 +127,27 @@ class UserTableModel(QAbstractTableModel):
             return  # Проверка на допустимость индекса строки
 
         self.beginRemoveRows(self.index(row, 0), row, row)
-        del self._data[row]  # Удаляем данные в строке
+        self.del_data(row_id=row)# Удаляем данные в строке
         self.endRemoveRows()
+
+        # Обновляем row_id только для строк, которые идут после удаленной
+        self.reassign_row_ids(row)
 
         # Уведомляем об изменении данных
         self.layoutChanged.emit()
+
+    def reassign_row_ids(self, ids):
+        """Переопределяет row_id для строк, которые идут после удаленной строки."""
+        new_data = self.get_data().copy()
+
+        for old_row_id in self.get_data().keys():
+            if old_row_id > ids:
+                new_data[old_row_id - 1] = self._data[old_row_id]
+                new_data.pop(old_row_id)
+            else:
+                new_data[old_row_id] = self._data[old_row_id]
+        self._data = new_data
+
 
     def rowCount(self, parent=None):
         return len(self._data)
@@ -137,7 +166,7 @@ class UserTableModel(QAbstractTableModel):
     def data(self, index, role=Qt.DisplayRole):
         if index.isValid():
             if role in [Qt.DisplayRole, Qt.EditRole]:
-                if row := self._data.data.get(index.row(), False):
+                if row := self._data.get(index.row(), False):
                     value = row.get(self._headers[index.column()], "")
                     return str(value)
 
@@ -161,7 +190,7 @@ class UserTableModel(QAbstractTableModel):
         dialog = EditDialog(self._data[row], self._headers)
         if dialog.exec() == QDialog.Accepted:
             new_values = dialog.getValues()
-            self._data.data = (row, new_values)
+            self._data[row] = new_values            
             self.dataChanged.emit(self.index(row, 0), self.index(row, len(self._headers) - 1))
 
     def addColumn(self, header):
@@ -256,8 +285,25 @@ class ObservableDict(dict):
         """Получает статус для указанного ключа."""
         return self._status_manager.get_status(key)
 
+    def pop(self, key, default=None):
+        return self._internal_data.pop(key, default)
+
+    def keys(self):
+        """D.keys() -> a set-like object providing a view on D's keys"""
+        return self._internal_data.keys()
+
+    def copy(self) -> dict:
+        return self._internal_data.copy()
+
+    def get(self, key: Any, default:Any=None):
+        return self._internal_data.get(key, default)
+
+    def __contains__(self, key):
+        # Здесь вы можете определить свою логику
+        return key in self._internal_data
+
     def __getitem__(self, key: Any) -> Any:
-        return self._internal_data[key]
+        return self._internal_data.__getitem__(key)
 
     def __setitem__(self, key, value):
         status = self._status_manager.get_status(key)
