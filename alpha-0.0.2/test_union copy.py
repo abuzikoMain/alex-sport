@@ -174,24 +174,25 @@ class UserTableModel(QAbstractTableModel):
                 return Qt.AlignCenter
 
     def setData(self, index, value, role):
-        if index.isValid():
-            if role == Qt.EditRole:
-                self._data[index.row()][self._headers[index.column()]] = value
-                return True
-            return False
+        if index.isValid() and role == Qt.EditRole:
+            temp = self._data[index.row()].copy()
+            temp[self._headers[index.column()]] = value
+            self._data[index.row()] = temp
+            return True
         return False  # Возвращаем False, если роль не соответствует
 
     
     def flags(self, index):
-        return Qt.ItemIsSelectable | Qt.ItemIsEnabled
+        return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable
         # return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable
 
     def editData(self, row):
-        dialog = EditDialog(self._data[row], self._headers)
-        if dialog.exec() == QDialog.Accepted:
-            new_values = dialog.getValues()
-            self._data[row] = new_values            
-            self.dataChanged.emit(self.index(row, 0), self.index(row, len(self._headers) - 1))
+        ...
+        # dialog = EditDialog(self._data[row], self._headers)
+        # if dialog.exec() == QDialog.Accepted:
+        #     new_values = dialog.getValues()
+        #     self._data[row] = new_values            
+        #     self.dataChanged.emit(self.index(row, 0), self.index(row, len(self._headers) - 1))
 
     def addColumn(self, header):
         self.beginInsertColumns(self.index(0, len(self._headers)), len(self._headers), len(self._headers))
@@ -224,6 +225,29 @@ class UserTableModel(QAbstractTableModel):
 
     def output_data(self):
         return self._data
+
+class InternalData(dict):
+    def __init__(self, callback_set_item):
+        ...
+
+    
+    # def __setitem__(self, key, value):
+    #     status = self._status_manager.get_status(key)
+    #     if key in self._internal_data:
+    #         if self._internal_data[key] != value:
+    #             status.changed = True
+    #         else:
+    #             status.changed = False
+    #     else:
+    #         status.new = True
+
+    #     # Устанавливаем exist в True, так как элемент добавляется
+    #     status.exist = True
+
+    #     self._internal_data[key] = value
+    #     self._status_manager.update_status(key, status)
+
+
 
 class ObservableDict(dict):
     """Словарь, который отслеживает изменения и статусы элементов."""
@@ -307,7 +331,6 @@ class ObservableDict(dict):
 
     def __setitem__(self, key, value):
         status = self._status_manager.get_status(key)
-
         if key in self._internal_data:
             if self._internal_data[key] != value:
                 status.changed = True
