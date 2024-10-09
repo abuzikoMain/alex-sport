@@ -20,9 +20,9 @@ class User:
     def insert(self, db: Database):
         # Вставка нового пользователя
         db.cursor.execute("INSERT INTO Users DEFAULT VALUES;")
-        user_id = db.cursor.lastrowid  # Получаем id нового пользователя
-
         if self.attributes:
+            user_id = db.cursor.lastrowid  # Получаем id нового пользователя
+
             # Вставка атрибутов
             for key, value in self.attributes.items():
                 if key != 'date_of_birth':
@@ -38,9 +38,10 @@ class UserManager:
         self.db = db
 
     def select_all(self, return_type: str = None):
-        """
-        return_type: str 'dict' or 'list'
-        """
+        users_attributes = self.fetch_users_attributes()
+        return self.aggregate_user_attributes(users_attributes)
+
+    def fetch_users_attributes(self):
         query = """
         SELECT 
             u.id AS user_id,
@@ -52,28 +53,17 @@ class UserManager:
             UserAttributes ua ON u.id = ua.user_id   
         """
         self.db.cursor.execute(query)
-        users_attributes = self.db.cursor.fetchall()
+        return self.db.cursor.fetchall()
 
-        query = """
-        SELECT 
-            u.id AS user_id,
-            ud.date_of_birth
-        FROM 
-            Users u
-        LEFT JOIN 
-            UserDateBirth ud ON u.id = ud.user_id
-        GROUP BY 
-            u.id;    
-        """
-
+    def aggregate_user_attributes(self, users_attributes):
         users = {}
-
         for user_id, attribute_key, attribute_value in users_attributes:
-            if user_id - 1 not in users:
-                users[user_id - 1] = {}
-            users[user_id - 1][attribute_key] = attribute_value
-        # {row_id: {header_name: value, header_name: value}, row_id: {header_name: value}}
+            # Используем user_id напрямую, так как он уже соответствует id пользователя
+            if user_id not in users:
+                users[user_id] = {}
+            users[user_id][attribute_key] = attribute_value
         return users
+
 
     def select_user(self, user_id):
         query = """
@@ -92,38 +82,53 @@ class UserManager:
             u.id, udb.date_of_birth;
         """
         self.db.cursor.execute(query, (user_id,))
-        user = self.db.cursor.fetchall()
-        return user
+        return self.db.cursor.fetchall()
 
     def create_user(self, attributes: dict):
-        user = User(None)
+        user = User(attributes)
         user.insert(self.db)
         self.db.commit()
 
     def delete_user(self, user_id):
-        self.db.cursor.execute("DELETE FROM UserAttributes WHERE user_id = ?;", (user_id,))
-        self.db.cursor.execute("DELETE FROM UserDateBirth WHERE user_id = ?;", (user_id,))
-        self.db.cursor.execute("DELETE FROM Users WHERE id = ?;", (user_id,))
+        self.delete_user_attributes(user_id)
+        self.delete_user_date_of_birth(user_id)
+        self.delete_user_record(user_id)
         self.db.commit()
+
+    def delete_user_attributes(self, user_id):
+        self.db.cursor.execute("DELETE FROM UserAttributes WHERE user_id = ?;", (user_id,))
+
+    def delete_user_date_of_birth(self, user_id):
+        self.db.cursor.execute("DELETE FROM UserDateBirth WHERE user_id = ?;", (user_id,))
+
+    def delete_user_record(self, user_id):
+        self.db.cursor.execute("DELETE FROM Users WHERE id = ?;", (user_id,))
 
     def insert_random_birth_dates(self, start_date: str, end_date: str):
-        query = "SELECT MAX(id) FROM Users;"
-        self.db.cursor.execute(query)
-        user_ids = self.db.cursor.fetchone()[0]
-
-        for user_id in range(1, user_ids + 1):
+        user_ids = self.fetch_all_user_ids()
+        for user_id in user_ids:
             random_date = self.generate_random_date(start_date, end_date)
-            self.db.cursor.execute("INSERT INTO UserDateBirth (user_id, date_of_birth) VALUES (?, ?);", 
-                                   (user_id, random_date))
+            self.insert_birth_date(user_id, random_date)
         self.db.commit()
 
+    def fetch_all_user_ids(self):
+        query = "SELECT MAX(id) FROM Users;"
+        self.db.cursor.execute(query)
+        return range(1, self.db.cursor.fetchone()[0] + 1)
+
+    def insert_birth_date(self, user_id, random_date):
+        self.db.cursor.execute("INSERT INTO UserDateBirth (user_id, date_of_birth) VALUES (?, ?);", 
+                               (user_id, random_date))
+
     def change_attribute_value(self, user_id, new_value, attribute_key):
-        self.db.cursor.execute("UPDATE UserAttributes SET attribute_value = ? WHERE user_id = ? AND attribute_key = ?", (new_value, user_id, attribute_key))
-        self.db.commit()  # Сохранение изменений
+        self.db.cursor.execute("UPDATE UserAttributes SET attribute_value = ? WHERE user_id = ? AND attribute_key = ?", 
+                               (new_value, user_id, attribute_key))
+        self.db.commit()
 
     def change_date_value(self, user_id, new_value):
-        self.db.cursor.execute("UPDATE UserDateBirth SET date_of_birth = ? WHERE user_id = ?", (new_value, user_id))
-        self.db.commit()   # Сохранение изменений
+        self.db.cursor.execute("UPDATE UserDateBirth SET date_of_birth = ? WHERE user_id = ?", 
+                               (new_value, user_id))
+        self.db.commit()
 
     def select_on_filter(self, attributes: dict):
         query, params = self.build_query(attributes)
@@ -132,18 +137,20 @@ class UserManager:
         if not users:
             return
 
+        user_attributes = self.fetch_user_attributes(users)
+        if count_attributes := self.count_unique_attributes():
+            return user_attributes, count_attributes
+        else:
+            return
+
+    def fetch_user_attributes(self, users):
         query, user_ids = self.build_query_users_attributes(users)
         self.db.cursor.execute(query, user_ids)
-        user_attributes = self.db.cursor.fetchall()
-        if not user_attributes:
-            return
-        
-        count_atributes = AttributeManager.count_attributes(self.db)
-        if not count_atributes:
-            return
-        
-        return user_attributes, count_atributes
-    
+        return self.db.cursor.fetchall()
+
+    def count_unique_attributes(self):
+        return AttributeManager.count_attributes(self.db)
+
     def build_query(self, attributes: dict) -> tuple[str, list]:
         """
         Return tuple[str, list]
@@ -221,119 +228,121 @@ class UserManager:
 class AttributeManager:
     def __init__(self, db: Database) -> None:
         self.db = db
-    
+
     def create_attribute(self, attribute_key, attribute_value=None):
-        if self.validate_attribute(attribute_key):
+        if not self.validate_attribute(attribute_key):
+            raise ValueError(f"Attribute '{attribute_key}' already exists.")  # Генерация исключения
 
-            # Запрос для получения последнего id
-            query = "SELECT MAX(id) FROM Users;"
-            self.db.cursor.execute(query)
-            user_ids = self.db.cursor.fetchone()[0] #+ 1
+        user_ids = self.fetch_all_user_ids()
+        self.insert_attributes_for_users(user_ids, attribute_key, attribute_value)
+        self.insert_attribute_name(attribute_key)
 
-            # Вставка атрибутов для каждого пользователя
-            for user_id in range(1, user_ids):
-                attributes = [
-                    (user_id, attribute_key, attribute_value)
-                ]
-                self.db.cursor.executemany("INSERT INTO UserAttributes (user_id, attribute_key, attribute_value) VALUES (?, ?, ?);", attributes)
+    def fetch_all_user_ids(self):
+        query = "SELECT id FROM Users;"
+        self.db.cursor.execute(query)
+        return [user[0] for user in self.db.cursor.fetchall()]
 
-            query = "INSERT INTO Attributes (attribute_name) VALUES (?);"
-            self.db.cursor.execute(query, (attribute_key,))
-            # Сохранение изменений и закрытие соединения
-            self.db.commit()
+    def insert_attributes_for_users(self, user_ids, attribute_key, attribute_value):
+        attributes = [(user_id, attribute_key, attribute_value) for user_id in user_ids]
+        self.db.cursor.executemany(
+            "INSERT INTO UserAttributes (user_id, attribute_key, attribute_value) VALUES (?, ?, ?);",
+            attributes
+        )
+
+    def insert_attribute_name(self, attribute_key):
+        query = "INSERT INTO Attributes (attribute_name) VALUES (?);"
+        self.db.cursor.execute(query, (attribute_key,))
+        self.db.commit()
 
     def validate_attribute(self, attribute_key: str) -> bool:
-        # Запрос для проверки существования атрибута с использованием EXISTS
         query = "SELECT 1 FROM Attributes WHERE attribute_name = ? LIMIT 1;"
         self.db.cursor.execute(query, (attribute_key,))
         exists = self.db.cursor.fetchone() is not None
-        
-        # Если запись найдена, значит атрибут существует
         return not exists
-        
+
     def delete_attribute(self, attribute_key):
-        query = """
-        DELETE FROM UserAttributes
-        WHERE attribute_key = ?;""" 
-
-        self.db.cursor.execute(query, (attribute_key,))
-
-        query = """
-        DELETE FROM Attributes
-        WHERE attribute_name = ?;""" 
-
-        self.db.cursor.execute(query, (attribute_key,))
-        self.db.conn.commit()  # Сохранение изменений
+        if not self.validate_attribute(attribute_key):
+            # Если атрибут существует, удаляем его
+            query = "DELETE FROM UserAttributes WHERE attribute_key = ?;"
+            self.db.cursor.execute(query, (attribute_key,))
+            query = "DELETE FROM Attributes WHERE attribute_name = ?;"
+            self.db.cursor.execute(query, (attribute_key,))
+            self.db.commit()
+        else:
+            print(f"Attribute '{attribute_key}' does not exist and cannot be deleted.")
 
     def rename_attribute(self, attribute_key, new_attribute_key):
-        self.db.cursor.execute("UPDATE UserAttributes SET attribute_key = ? WHERE attribute_key = ?", (new_attribute_key, attribute_key))
-        self.db.cursor.execute("UPDATE UserAttributes SET attribute_name = ? WHERE attribute_name = ?", (new_attribute_key, attribute_key))
-        self.db.conn.commit()  # Сохранение изменений
-    
+        if not self.validate_attribute(attribute_key):
+            # Если атрибут существует, переименовываем его
+            self.db.cursor.execute("UPDATE UserAttributes SET attribute_key = ? WHERE attribute_key = ?", 
+                                    (new_attribute_key, attribute_key))
+            self.db.cursor.execute("UPDATE Attributes SET attribute_name = ? WHERE attribute_name = ?", 
+                                    (new_attribute_key, attribute_key))
+            self.db.commit()
+        else:
+            print(f"Attribute '{attribute_key}' does not exist and cannot be renamed.")
 
     def names_all_attributes(self):
-        query = """
-        SELECT attribute_name AS unique_attribute_key_count
-        FROM Attributes
-        ORDER BY id ASC;"""
+        query = "SELECT attribute_name AS unique_attribute_key_count FROM Attributes ORDER BY id ASC;"
         self.db.cursor.execute(query)
         names_attributes = self.db.cursor.fetchall()
-        names_attributes = [item[0] for item in names_attributes]
-        return names_attributes
-
+        return [item[0] for item in names_attributes]
 
     @staticmethod
     def count_attributes(db: Database):
-        query = """
-        SELECT COUNT(DISTINCT attribute_name) AS unique_attribute_key_count
-        FROM Attributes;"""
+        query = "SELECT COUNT(DISTINCT attribute_name) AS unique_attribute_key_count FROM Attributes;"
         db.cursor.execute(query)
-        count_attributes = db.cursor.fetchall()
-        if len(count_attributes) > 0:
-            count_attributes = count_attributes[0][0]
-        else:
-            count_attributes = 0  # Если нет атрибутов, возвращаем 0
-
-        return count_attributes
-    
+        count_attributes = db.cursor.fetchone()[0]  # Получаем результат только один раз
+        return count_attributes if count_attributes is not None else 0
+   
 class TableManager:
     def __init__(self, db: Database):
         self.db = db
 
     def create_tables(self):
-        self.db.cursor.execute("""
+        self._extracted_from_drop_tables_2(
+            """
         CREATE TABLE IF NOT EXISTS Users (
             id INTEGER PRIMARY KEY AUTOINCREMENT
-        );""")
-        self.db.cursor.execute("""
+        );""",
+            """
         CREATE TABLE IF NOT EXISTS UserAttributes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
             attribute_key TEXT NOT NULL,
             attribute_value TEXT,
             FOREIGN KEY (user_id) REFERENCES Users(id)
-        );""")
-        self.db.cursor.execute("""
+        );""",
+            """
         CREATE TABLE IF NOT EXISTS UserDateBirth (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
             date_of_birth DATE,
             FOREIGN KEY (user_id) REFERENCES Users(id)
-        );""")
-        self.db.cursor.execute("""
+        );""",
+            """
         CREATE TABLE IF NOT EXISTS Attributes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             attribute_name TEXT
-        );""")        
-        self.db.commit()
+        );""",
+        )
 
     def drop_tables(self):
-        self.db.cursor.execute("DROP TABLE IF EXISTS UserAttributes;")
-        self.db.cursor.execute("DROP TABLE IF EXISTS Attributes;")
-        self.db.cursor.execute("DROP TABLE IF EXISTS UserDateBirth;")
-        self.db.cursor.execute("DROP TABLE IF EXISTS Users;")
-        self.db.commit()
+        self._extracted_from_drop_tables_2(
+            "DROP TABLE IF EXISTS UserAttributes;",
+            "DROP TABLE IF EXISTS Attributes;",
+            "DROP TABLE IF EXISTS UserDateBirth;",
+            "DROP TABLE IF EXISTS Users;",
+        )
         print("Все таблицы успешно сброшены.")
+
+    # TODO Rename this here and in `create_tables` and `drop_tables`
+    def _extracted_from_drop_tables_2(self, arg0, arg1, arg2, arg3):
+        self.db.cursor.execute(arg0)
+        self.db.cursor.execute(arg1)
+        self.db.cursor.execute(arg2)
+        self.db.cursor.execute(arg3)
+        self.db.commit()
 
 
 if __name__ == "__main__":
