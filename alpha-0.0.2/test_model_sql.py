@@ -37,7 +37,6 @@ class User:
                 db.cursor.execute("INSERT INTO UserDateBirth (user_id, date_of_birth) VALUES (?, ?);",
                                 (user_id, value.get('date_of_birth')))
 
-
 class UserManager:
     def __init__(self, db: Database):
         self.db = db
@@ -349,7 +348,6 @@ class TableManager:
         self.db.cursor.execute("DROP TABLE IF EXISTS Users;")
         self.db.commit()
         print("Все таблицы успешно сброшены.")
-
 
 if __name__ == "__main__":
     db = Database('your_database.db')
