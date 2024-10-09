@@ -226,29 +226,6 @@ class UserTableModel(QAbstractTableModel):
     def output_data(self):
         return self._data
 
-class InternalData(dict):
-    def __init__(self, callback_set_item):
-        ...
-
-    
-    # def __setitem__(self, key, value):
-    #     status = self._status_manager.get_status(key)
-    #     if key in self._internal_data:
-    #         if self._internal_data[key] != value:
-    #             status.changed = True
-    #         else:
-    #             status.changed = False
-    #     else:
-    #         status.new = True
-
-    #     # Устанавливаем exist в True, так как элемент добавляется
-    #     status.exist = True
-
-    #     self._internal_data[key] = value
-    #     self._status_manager.update_status(key, status)
-
-
-
 class ObservableDict(dict):
     """Словарь, который отслеживает изменения и статусы элементов."""
     def __init__(self):
