@@ -62,9 +62,11 @@ class StatusManager:
 
 # Модель данных для QTableView
 class UserTableModel(QAbstractTableModel):
-    def __init__(self, headers):
+    def __init__(self, headers, user_manager: UserManager, attribute_manager: AttributeManager):
         super().__init__()
-        self._data = {}
+        self._data: ObservableDict = {}
+        self.user_manager = user_manager
+        self.attribute_manager = attribute_manager
         # Данные в формате {row_id: {header_name: value}}
         self._headers = headers
         self.copied_data = None  # Для хранения скопированных данных
