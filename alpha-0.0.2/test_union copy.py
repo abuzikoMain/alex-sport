@@ -585,7 +585,6 @@ class AddColumnDialog(QDialog):
     def getColumnName(self):
         return self.column_name_input.text()
 
-
 class TableController:
     def __init__(self, model, window):
         self.model = model
