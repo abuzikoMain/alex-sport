@@ -433,6 +433,7 @@ class MainWindow(QMainWindow):
         self.add_row_action = self.create_menu_action("Добавить строку", self.file_menu_action, shortcut="Ctrl+D")
         self.remove_row_action = self.create_menu_action("Удалить строку", self.file_menu_action, shortcut="Delete")
         self.copy_action = self.create_menu_action("Копировать", self.file_menu_action, shortcut="Ctrl+C")
+        self.save_action = self.create_menu_action("Сохранить", self.file_menu_file, shortcut="Ctrl+S")
         self.paste_action = self.create_menu_action("Вставить", self.file_menu_action, shortcut="Ctrl+V")
         self.load_excel_action = self.create_menu_action("Загрузить из Excel", self.file_menu_file)
         self.conditions_action = self.create_menu_action("Условия", self.file_menu_file)
