@@ -26,10 +26,10 @@ class Status:
     __slots__ = ['new', 'changed', 'exist']
     
     """Класс для представления статуса элемента."""
-    def __init__(self):
-        self.new = False
-        self.changed = False
-        self.exist = False
+    def __init__(self, new = False, changed = False, exist = False):
+        self.new = new
+        self.changed = changed
+        self.exist = exist
 
 class StatusManager:
     """Менеджер для управления статусами элементов."""
