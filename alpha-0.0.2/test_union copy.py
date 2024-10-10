@@ -71,6 +71,49 @@ class UserTableModel(QAbstractTableModel):
         self._headers = headers
         self.copied_data = None  # Для хранения скопированных данных
 
+    def get_data_changed(self) -> dict:
+        """Возвращает измененные данные."""
+        new_data = {}
+        data_cp = self._data.copy()
+        for key, val in data_cp.items():
+            if self.is_data_changed(key):
+                new_data[key] = val
+        return new_data
+
+    def is_data_changed(self, key) -> bool:
+        """Проверяет, изменены ли данные по заданному ключу."""
+        status = self._data.status(key)
+        return status.changed
+
+    def save_action(self) -> bool:
+        """Сохраняет измененные данные и создает атрибуты и пользователей."""
+        data = self.get_data_changed()
+        if data:
+            self.create_attributes()
+            status_user = self.create_users(data)
+            self._data.update_statuses(self._data.keys(), Status(new=False, changed=False, exist=True))
+            return status_user
+        return False
+
+    def create_attributes(self):
+        """Создает атрибуты для всех заголовков."""
+        for attribute in self._headers:
+            self.attribute_manager.create_attribute(attribute)
+
+    def create_users(self, data: dict):
+        """Создает пользователей на основе измененных данных."""
+
+        status_operations = {}
+
+        for key, val in data.items():
+            t_dic = {key: val}
+            status_operation = self.user_manager.create_user(t_dic)
+            status_operations[key] = status_operation
+
+        has_false = not all(status_operations.values())
+        return not has_false
+
+            
     def get_data(self):
         return self._data
     
