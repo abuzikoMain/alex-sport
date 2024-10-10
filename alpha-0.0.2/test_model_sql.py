@@ -136,11 +136,12 @@ class UserManager:
         user = self.db.cursor.fetchall()
         return user
 
-    def create_user(self, attributes: dict):
+    def create_user(self, attributes: dict) -> bool:
         user = User(attributes)
-        user.insert(self.db)
+        st = user.insert(self.db)
         self.db.commit()
-
+        return st
+    
     def delete_user(self, user_id):
         self.db.cursor.execute("DELETE FROM UserAttributes WHERE user_id = ?;", (user_id,))
         self.db.cursor.execute("DELETE FROM UserDateBirth WHERE user_id = ?;", (user_id,))
