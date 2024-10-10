@@ -17,25 +17,61 @@ class User:
     def __init__(self, attributes):
         self.attributes = attributes
 
-    def insert(self, db: Database):
-        # Вставка нового пользователя
-        db.cursor.execute("INSERT INTO Users DEFAULT VALUES;")
-        user_id = db.cursor.lastrowid  # Получаем id нового пользователя
+    def insert(self, db: Database) -> bool:
+        """Вставка нового пользователя и его атрибутов в базу данных."""
+        user_id = self.insert_user(db)
+        if user_id is None:
+            return False  # Не удалось создать пользователя
 
         if self.attributes:
-            # Вставка атрибутов
+            if not self.insert_user_attributes(db, user_id):
+                return False  # Не удалось добавить атрибуты
+
+            if not self.insert_user_date_of_birth(db, user_id):
+                return False  # Не удалось добавить дату рождения
+
+        return True  # Пользователь успешно создан и атрибуты добавлены
+
+    def insert_user(self, db: Database) -> int:
+        """Вставляет нового пользователя и возвращает его ID или None в случае ошибки."""
+        try:
+            db.cursor.execute("INSERT INTO Users DEFAULT VALUES;")
+            return db.cursor.lastrowid  # Получаем id нового пользователя
+        except Exception as e:
+            print(f"Ошибка при вставке пользователя: {e}")
+            return None
+
+    def insert_user_attributes(self, db: Database, user_id: int) -> bool:
+        """Вставляет атрибуты пользователя в базу данных и возвращает True/False в зависимости от успеха."""
+        try:
             for key, value in self.attributes.items():
                 for attribute_key, attribute_value in value.items():
                     if attribute_key != 'date_of_birth':
-                        db.cursor.execute("INSERT INTO UserAttributes (user_id, attribute_key, attribute_value) VALUES (?, ?, ?);",
-                                        (user_id, attribute_key, attribute_value))
+                        db.cursor.execute(
+                            "INSERT INTO UserAttributes (user_id, attribute_key, attribute_value) VALUES (?, ?, ?);",
+                            (user_id, attribute_key, attribute_value)
+                        )
                 if key == 'not_user':
-                    user_id += 1
-                    
-            for user_id, value in self.attributes.items():
-            # Вставка даты рождения
-                db.cursor.execute("INSERT INTO UserDateBirth (user_id, date_of_birth) VALUES (?, ?);",
-                                (user_id, value.get('date_of_birth')))
+                    user_id += 1  # Увеличиваем user_id, если это не пользователь
+            return True  # Атрибуты успешно добавлены
+        except Exception as e:
+            print(f"Ошибка при вставке атрибутов: {e}")
+            return False
+
+    def insert_user_date_of_birth(self, db: Database, user_id: int) -> bool:
+        """Вставляет дату рождения пользователя в базу данных и возвращает True/False в зависимости от успеха."""
+        try:
+            for key, value in self.attributes.items():
+                date_of_birth = value.get('date_of_birth')
+                if date_of_birth:
+                    db.cursor.execute(
+                        "INSERT INTO UserDateBirth (user_id, date_of_birth) VALUES (?, ?);",
+                        (user_id, date_of_birth)
+                    )
+            return True  # Дата рождения успешно добавлена
+        except Exception as e:
+            print(f"Ошибка при вставке даты рождения: {e}")
+            return False
 
 class UserManager:
     def __init__(self, db: Database):
