@@ -599,6 +599,21 @@ class TableController:
         self.window.remove_column_action.triggered.connect(self.remove_column)
         self.window.remove_row_action.triggered.connect(self.remove_row)
         self.window.table_view.doubleClicked.connect(self.on_cell_double_clicked)
+        self.window.save_action.triggered.connect(self.save_action)
+
+    def save_action(self):
+        if self.model.save_action():
+            self.show_message("Успех", "Данные успешно сохранены.")
+        else:
+            self.show_message("Ошибка", "Не удалось сохранить данные.")
+
+    def show_message(self, title: str, message: str):
+        """Отображает сообщение в диалоговом окне."""
+        msg_box = QMessageBox()
+        msg_box.setWindowTitle(title)
+        msg_box.setText(message)
+        msg_box.setStandardButtons(QMessageBox.Ok)
+        msg_box.exec()
 
     def add_column(self):
         dialog = AddColumnDialog()
