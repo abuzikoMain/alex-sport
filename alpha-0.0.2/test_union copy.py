@@ -681,7 +681,7 @@ class AppController:
 
         self.headers = self.attribute_manager.names_all_attributes()
 
-        self.model = UserTableModel(self.headers)
+        self.model = UserTableModel(self.headers, self.user_manager, self.attribute_manager)
         self.model._data = self.data
 
         self.window = MainWindow(self.model)
