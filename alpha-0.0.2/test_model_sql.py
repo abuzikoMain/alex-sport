@@ -273,7 +273,7 @@ class AttributeManager:
     def __init__(self, db: Database) -> None:
         self.db = db
     
-    def create_attribute(self, attribute_key, attribute_value=None):
+    def create_attribute(self, attribute_key: str, attribute_value=None):
         if self.validate_attribute(attribute_key):
 
             # Запрос для получения последнего id
@@ -281,12 +281,13 @@ class AttributeManager:
             self.db.cursor.execute(query)
             user_ids = self.db.cursor.fetchone()[0] #+ 1
 
-            # Вставка атрибутов для каждого пользователя
-            for user_id in range(1, user_ids):
-                attributes = [
-                    (user_id, attribute_key, attribute_value)
-                ]
-                self.db.cursor.executemany("INSERT INTO UserAttributes (user_id, attribute_key, attribute_value) VALUES (?, ?, ?);", attributes)
+            if user_ids:
+                # Вставка атрибутов для каждого пользователя
+                for user_id in range(1, user_ids):
+                    attributes = [
+                        (user_id, attribute_key, attribute_value)
+                    ]
+                    self.db.cursor.executemany("INSERT INTO UserAttributes (user_id, attribute_key, attribute_value) VALUES (?, ?, ?);", attributes)
 
             query = "INSERT INTO Attributes (attribute_name) VALUES (?);"
             self.db.cursor.execute(query, (attribute_key,))
