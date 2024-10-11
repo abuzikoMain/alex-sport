@@ -23,6 +23,76 @@ names = [
     "Григорий", "Виктория", "Алексей", "Евгения", "Константин"
 ]
 
+class FileSaver:
+    """Класс для управления сохранением файлов в разных форматах."""
+    
+    @staticmethod
+    def save_as_xlsx(file_name, content):
+        wb = Workbook()
+        ws = wb.active
+        ws['A1'] = content
+        wb.save(file_name)
+
+    @staticmethod
+    def save_as_docx(file_name, content):
+        doc = Document()
+        doc.add_paragraph(content)
+        doc.save(file_name)
+
+class TextEditorController:
+    """Класс для управления логикой текстового редактора."""
+    
+    def __init__(self):
+        self.content = ""
+
+    def set_content(self, content):
+        self.content = content
+
+    def get_content(self):
+        return self.content
+
+    def save_file(self, file_name):
+        if file_name.endswith('.xlsx'):
+            FileSaver.save_as_xlsx(file_name, self.content)
+        elif file_name.endswith('.docx'):
+            FileSaver.save_as_docx(file_name, self.content)
+        else:
+            with open(file_name, 'w', encoding='utf-8') as f:
+                f.write(self.content)
+
+class TextEditorUI(QMainWindow):
+    """Класс для отображения пользовательского интерфейса текстового редактора."""
+    
+    def __init__(self, controller):
+        super().__init__()
+
+        self.controller = controller
+
+        self.setWindowTitle("Текстовый редактор")
+        self.setGeometry(100, 100, 600, 400)
+
+        self.text_edit = QTextEdit(self)
+        self.save_button = QPushButton("Сохранить", self)
+        self.save_button.clicked.connect(self.save_file)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.text_edit)
+        layout.addWidget(self.save_button)
+
+        container = QWidget()
+        container.setLayout(layout)
+        self.setCentralWidget(container)
+
+    def save_file(self):
+        options = QFileDialog.Options()
+        file_name, _ = QFileDialog.getSaveFileName(self, "Сохранить файл", "", "Text Files (*.txt);;Excel Files (*.xlsx);;Word Files (*.docx)", options=options)
+        
+        if file_name:
+            content = self.text_edit.toPlainText()
+            self.controller.set_content(content)  # Устанавливаем контент в контроллер
+            self.controller.save_file(file_name)  # Сохраняем файл
+
+
 class Status:
     __slots__ = ['new', 'changed', 'exist']
     
