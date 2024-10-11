@@ -7,8 +7,9 @@ from PySide6.QtWidgets import (
     QFileDialog, QListWidget, QHBoxLayout, QMessageBox
 )
 from PySide6.QtCore import Qt, QAbstractTableModel
-from PySide6.QtGui import (QAction, QStandardItem, QStandardItemModel,
-                           QIcon)
+from PySide6.QtGui import (QAction)
+from openpyxl import Workbook
+from docx import Document
 from test_model_sql import *
 from collections import defaultdict
 
