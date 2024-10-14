@@ -501,6 +501,7 @@ class MainWindow(QMainWindow):
         self.file_menu_action = QMenu("Действия", self)
         self.menu_bar_file.addMenu(self.file_menu_action)
 
+        self.group_data = self.create_menu_action("Сгруппировать", self.file_menu_action)
         self.add_column_action = self.create_menu_action("Добавить колонку", self.file_menu_action)
         self.remove_column_action = self.create_menu_action("Удалить колонку", self.file_menu_action)
         self.add_row_action = self.create_menu_action("Добавить строку", self.file_menu_action, shortcut="Ctrl+D")
