@@ -729,6 +729,68 @@ class TableController:
         self.window.table_view.doubleClicked.connect(self.on_cell_double_clicked)
         self.window.save_action.triggered.connect(self.save_action)
 
+    def group_data(self) -> dict[str, dict[str, Any]]:
+        """
+        Метод для группировки данных на основе фильтров из контроллера условий.
+
+        Возвращает словарь, где ключами являются идентификаторы пользователей, 
+        а значениями - словари атрибутов пользователей.
+        """
+        groups = self.get_groups_from_controller()  # Получаем группы из контроллера условий
+        filtered_data = self.filter_data(groups)  # Фильтруем данные на основе групп
+        a = self.process_filtered_data(filtered_data)
+        print(a)
+        return a  # Обрабатываем и возвращаем результат
+
+    def get_groups_from_controller(self) -> list[dict[str, dict[str, tuple]]]:
+        """Получает группы из контроллера условий."""
+        return self.condition_controller.get_groups()  # [{'asd': {'Test': ('1', '4')}}]
+
+    def filter_data(self, groups: list[dict[str, dict[str, tuple]]]) -> dict[str, Any]:
+        """Фильтрует данные на основе переданных групп."""
+        filtered_data: dict[str, Any] = {}
+
+        for group in groups:
+            for filter_key, filter_value in group.items():
+                if filter_value is not None:
+                    user_data = self.get_user_data(filter_value)
+                    if user_data:
+                        filtered_data[filter_key] = user_data
+
+        return filtered_data
+
+    def get_user_data(self, filter_value: dict[str, tuple]) -> Any:
+        """Получает данные пользователя на основе фильтра."""
+        result = self.model.user_manager.select_on_filter(filter_value)
+        return result[0] if result else None
+
+    def process_filtered_data(self, filtered_data: dict[str, Any]) -> dict[str, Any]:
+        """Обрабатывает отфильтрованные данные."""
+        for each in filtered_data:
+            filtered_data[each] = self.construct_result(filtered_data[each])
+        return filtered_data
+
+    def construct_result(self, filtered_data: list[tuple[str, str, Any]]) -> dict[str, dict[str, Any]]:
+        """
+        Метод для построения словаря результатов на основе отфильтрованных данных.
+
+        Аргументы:
+        filtered_data -- список кортежей, содержащих идентификаторы, имена атрибутов и значения.
+
+        Возвращает словарь, где ключами являются идентификаторы пользователей, 
+        а значениями - словари атрибутов пользователей.
+        """
+        result = {}  # Словарь для хранения результатов
+        # Проходим по отфильтрованным данным
+        for id_, attribute_name, value in filtered_data:
+            if id_ not in result:  # Если идентификатор еще не добавлен в результат
+                result[id_] = {}  # Инициализируем новый словарь для атрибутов
+            # Добавляем атрибут и его значение в словарь
+            result[id_][attribute_name] = value
+        return result  # Возвращаем итоговый словарь
+
+
+       
     def save_action(self):
         if self.model.save_action():
             self.show_message("Успех", "Данные успешно сохранены.")
