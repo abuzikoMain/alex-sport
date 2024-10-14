@@ -562,11 +562,11 @@ class ConditionGroupDialog(QDialog):
     def load_groups(self):
         self.groups_list.clear()
         for group in self.condition_manager.get_groups():
-            self.groups_list.addItem(group)
+            self.groups_list.addItem(str(group))
 
     def create_group(self):
         group_name = self.group_name.text()
-        conditions = {header: (from_input.text(), to_input.text()) for header, (from_input, to_input) in self.inputs.items()}
+        conditions = {header: {'min':from_input.text(), 'max':to_input.text()} for header, (from_input, to_input) in self.inputs.items()}
         self.condition_manager.add_group(group_name, conditions)
         self.load_groups()
         self.clear_inputs()
