@@ -517,6 +517,29 @@ class MainWindow(QMainWindow):
         parent_menu.addAction(action)
         return action
 
+class Group(dict):    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def get_keys(self):
+        """Возвращает список всех ключей в словаре."""
+        return list(self.keys())
+
+    def get_values(self):
+        """Возвращает список всех значений в словаре."""
+        return list(self.values())
+
+    def __repr__(self) -> str:
+        return f"{super().__repr__()}"
+
+    def __str__(self):
+        """Переопределяем метод str для удобного отображения."""
+        if len(self) > 0 and len(self) < 2:
+            key = next(reversed(self.keys()))        
+            return f"Группа {key}"
+        return f"{super().__str__()}"
+  
+
 class ConditionGroupDialog(QDialog):
     def __init__(self, headers, condition_manager: ConditionManager):
         super().__init__()
