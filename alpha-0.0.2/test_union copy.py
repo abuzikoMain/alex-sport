@@ -791,6 +791,9 @@ class ConditionController:
     def __init__(self):
         self.condition_manager = ConditionManager()
 
+    def get_groups(self):
+        return self.condition_manager.get_groups()
+
     def open_conditions_dialog(self, headers):
         dialog = ConditionGroupDialog(headers, self.condition_manager)
         dialog.exec()
