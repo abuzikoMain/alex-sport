@@ -713,7 +713,8 @@ class AddColumnDialog(QDialog):
         return self.column_name_input.text()
 
 class TableController:
-    def __init__(self, model, window):
+    def __init__(self, model: UserTableModel, window: MainWindow, condition_controller: UserTableModel):
+        self.condition_controller = condition_controller
         self.model = model
         self.window = window
 
