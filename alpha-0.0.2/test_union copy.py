@@ -577,6 +577,35 @@ class ConditionGroupDialog(QDialog):
             from_input.clear()
             to_input.clear()
 
+    def editGroup(self, groups):
+        selected_item = self.groups_list.currentItem()
+        if selected_item:
+            index = self.groups_list.row(selected_item)
+            group = groups[index]
+            self.group_name.setText(list(group.keys())[0])  # Установка имени группы
+            conditions = group[list(group.keys())[0]]
+
+            # Установка значений в поля ввода
+            for header, (from_input, to_input) in self.inputs.items():
+                if header in conditions:
+                    from_input.setText(conditions[header]['min'])
+                    to_input.setText(conditions[header]['max'])
+
+            # Изменение кнопки создания группы на кнопку редактирования
+            self.create_button.setText("Редактировать группу")
+            self.create_button.clicked.disconnect()  # Отключаем старый обработчик
+            self.create_button.clicked.connect(lambda: self.update_group(index))   
+
+    def update_group(self, index):
+        group_name = self.group_name.text()
+        conditions = {header: {'min': from_input.text(), 'max': to_input.text()} for header, (from_input, to_input) in self.inputs.items()}
+        self.condition_manager.edit_group(index, group_name, conditions)
+        self.load_groups()
+        self.clear_inputs()
+        self.create_button.setText("Создать группу")  # Возвращаем текст кнопки
+        self.create_button.clicked.disconnect()  # Отключаем старый обработчик
+        self.create_button.clicked.connect(self.create_group)  # Подключаем обратно        
+
 class EditDialog(QDialog):
     def __init__(self, data: dict, headers: list):
         super().__init__()
