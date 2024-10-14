@@ -518,7 +518,7 @@ class MainWindow(QMainWindow):
         return action
 
 class ConditionGroupDialog(QDialog):
-    def __init__(self, headers, condition_manager):
+    def __init__(self, headers, condition_manager: ConditionManager):
         super().__init__()
         self.setWindowTitle("Создать группу условий")
         self.setFixedSize(300, 300)
@@ -544,6 +544,7 @@ class ConditionGroupDialog(QDialog):
         self.groups_list = QListWidget(self)
         self.layout.addWidget(self.groups_list)
         self.load_groups()
+        self.groups_list.doubleClicked.connect(lambda: self.editGroup(self.condition_manager.get_groups()))
 
     def _create_input_fields(self, headers):
         for header in headers:
