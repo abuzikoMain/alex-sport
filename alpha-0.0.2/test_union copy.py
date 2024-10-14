@@ -819,6 +819,8 @@ class AppController:
         self.table_controller = TableController(self.model, self.window)
         self.condition_controller = ConditionController()
 
+        self.table_controller = TableController(self.model, self.window, self.condition_controller)
+
         self.window.load_excel_action.triggered.connect(self.load_data_from_excel)
         self.window.conditions_action.triggered.connect(lambda: self.condition_controller.open_conditions_dialog(self.model.get_headers()))
 
