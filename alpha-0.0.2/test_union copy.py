@@ -454,15 +454,21 @@ class ConditionManager:
     def __init__(self):
         self.groups = []
 
-    def add_group(self, group_name, conditions):
-        # group_info = f"{group_name}: {conditions}"
+    def add_group(self, group_name: str, conditions: dict[str: dict[str: str, str: str]]):
+        # Conditions: {'Test': {'min': '1', 'max': '1'}}
         group_info = Group()
         group_info[group_name] = conditions
         self.groups.append(group_info) 
 
-    def edit_group(self, index, group_name, conditions):
+    def edit_group(self, index: int, group_name: str, conditions: dict[str: dict[str: str, str: str]]):
+        # Conditions: {'Test': {'min': '1', 'max': '1'}}
         if 0 <= index < len(self.groups):
             self.groups[index] = Group({group_name: conditions})
+
+    def delete_group(self, index: int):
+        # Удаляем группу по индексу
+        if 0 <= index < len(self.groups):
+            del self.groups[index]        
 
     def get_groups(self):
         return self.groups
