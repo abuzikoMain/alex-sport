@@ -502,9 +502,12 @@ class ConditionManager:
         self.groups = []
         self.validator = GroupValidator(self.groups)  # Инициализация валидатора        
 
-    def add_group(self, group_name: str, conditions: dict):
+    def add_group(self, group_name: str, conditions: dict[str: dict[str: str, str: str]]):
             # Проверка на наличие дубликатов с помощью валидатора
             self.validator.validate_group_name(group_name)
+            self.validator.validate_conditions(conditions)
+            self.validator.validate_conditions_overlap(conditions)
+
             group_info = Group()
             group_info[group_name] = conditions
             # Добавление новой группы
@@ -513,6 +516,8 @@ class ConditionManager:
     def edit_group(self, index: int, group_name: str, conditions: dict[str: dict[str: str, str: str]]):
         # Conditions: {'Test': {'min': '1', 'max': '1'}}
         self.validator.validate_group_index(index)
+        self.validator.validate_conditions(conditions)
+        self.validator.validate_conditions_overlap(conditions)
         self.groups[index] = Group({group_name: conditions})
 
     def delete_group(self, index: int):
