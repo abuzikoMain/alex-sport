@@ -606,7 +606,7 @@ class Group(dict):
   
 
 class ConditionGroupDialog(QDialog):
-    def __init__(self, headers, condition_manager: ConditionManager):
+    def __init__(self, headers: list[str, str, Any], condition_manager: ConditionManager):
         super().__init__()
         self.setWindowTitle("Создать группу условий")
         self.setFixedSize(300, 300)
@@ -813,6 +813,7 @@ class TableController:
         self.window.remove_column_action.triggered.connect(self.remove_column)
         self.window.remove_row_action.triggered.connect(self.remove_row)
         self.window.table_view.doubleClicked.connect(self.on_cell_double_clicked)
+        self.window.group_data.triggered.connect(self.group_data)
         self.window.save_action.triggered.connect(self.save_action)
 
     def group_data(self) -> dict[str, dict[str, Any]]:
