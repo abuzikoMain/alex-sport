@@ -346,6 +346,7 @@ class ObservableDict(dict):
     """Словарь, который отслеживает изменения и статусы элементов."""
     def __init__(self):
         self._internal_data = {}
+        self._delete_data = {}
         self._status_manager = StatusManager()
 
     @property
@@ -440,6 +441,7 @@ class ObservableDict(dict):
 
     def __delitem__(self, key):
         if key in self._internal_data:
+            self._delete_data[key] = self._internal_data[key]
             del self._internal_data[key]
             # Удаляем статус элемента
             self._status_manager.remove_status(key)
