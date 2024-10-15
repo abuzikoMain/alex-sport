@@ -450,9 +450,24 @@ class ObservableDict(dict):
     def __repr__(self):
         return f'{self._internal_data}'
 
+class GroupValidator:
+    def __init__(self, groups):
+        self.groups = groups
+
+
+    def validate_group_name(self, group_name: str):
+        if any(group_name == list(group.keys())[0] for group in self.groups):
+            raise ValueError(f"Группа с именем '{group_name}' уже существует.")
+
+    def validate_group_index(self, index: int):
+            if not (0 <= index < len(self.groups)):
+                raise IndexError(f"Индекс {index} вне диапазона групп.")
+
+
 class ConditionManager:
     def __init__(self):
         self.groups = []
+        self.validator = GroupValidator(self.groups)  # Инициализация валидатора        
 
     def add_group(self, group_name: str, conditions: dict[str: dict[str: str, str: str]]):
         # Conditions: {'Test': {'min': '1', 'max': '1'}}
