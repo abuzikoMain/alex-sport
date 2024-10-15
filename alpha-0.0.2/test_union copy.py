@@ -456,9 +456,18 @@ class GroupValidator:
 
 
     def validate_group_name(self, group_name: str):
+        if not group_name:
+            raise ValueError("Имя группы не может быть пустым.")
         if any(group_name == list(group.keys())[0] for group in self.groups):
             raise ValueError(f"Группа с именем '{group_name}' уже существует.")
 
+    def validate_conditions(self, conditions: dict):
+        if not conditions:
+            raise ValueError("Условия не могут быть пустыми.")
+        for value in conditions.values():
+            if any(attrValue in (None, '',) for attrValue in value.values()):
+                raise ValueError("Условия не могут быть пустыми.")
+                      
     def validate_group_index(self, index: int):
             if not (0 <= index < len(self.groups)):
                 raise IndexError(f"Индекс {index} вне диапазона групп.")
