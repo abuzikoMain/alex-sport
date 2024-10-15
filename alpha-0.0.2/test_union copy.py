@@ -323,9 +323,10 @@ class UserTableModel(QAbstractTableModel):
 
     def reassign_row_ids(self, ids):
         """Переопределяет row_id для строк, которые идут после удаленной строки."""
-        new_data = self.get_data().copy()
+        new_data = self.get_data()
+        keys = list(new_data.keys())
 
-        for old_row_id in self.get_data().keys():
+        for old_row_id in keys:
             if old_row_id > ids:
                 new_data[old_row_id - 1] = self._data[old_row_id]
                 new_data.pop(old_row_id)
