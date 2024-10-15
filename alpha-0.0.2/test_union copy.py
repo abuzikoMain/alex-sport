@@ -952,14 +952,13 @@ class TableController:
             # Добавляем атрибут и его значение в словарь
             result[id_][attribute_name] = value
         return result  # Возвращаем итоговый словарь
-
-
        
     def save_action(self):
-        if self.model.save_action():
+        status, error_code = self.model.save_action()
+        if status == True:
             self.show_message("Успех", "Данные успешно сохранены.")
-        else:
-            self.show_message("Ошибка", "Не удалось сохранить данные.")
+        elif status == False:
+            self.show_message("Ошибка", f"Не удалось сохранить данные.\n Error code {error_code}")
 
     def show_message(self, title: str, message: str):
         """Отображает сообщение в диалоговом окне."""
