@@ -434,6 +434,11 @@ class ObservableDict(dict):
             self[row_id] = value  # Используем __setitem__ для обновления статусов
         else:
             raise ValueError            
+    def clear_delation_data(self):
+        self._delete_data.clear()
+
+    def get_deletion_data(self):
+        return self._delete_data
 
     # Новый метод для загрузки данных из словаря
     def load_from_dict(self, input_dict):
