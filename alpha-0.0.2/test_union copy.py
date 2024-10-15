@@ -622,12 +622,28 @@ class ConditionGroupDialog(QDialog):
         self.create_button = QPushButton("Создать группу", self)
         self.create_button.clicked.connect(self.create_group)
         self.layout.addWidget(self.create_button)
+        
+        self.delete_button = QPushButton("Удалить групп", self)
+        self.delete_button.clicked.connect(lambda: self.delete_group())
+        self.layout.addWidget(self.delete_button)
+        self.delete_button.hide()
 
         # Список созданных групп
         self.groups_list = QListWidget(self)
         self.layout.addWidget(self.groups_list)
         self.load_groups()
         self.groups_list.doubleClicked.connect(lambda: self.editGroup(self.condition_manager.get_groups()))
+        self.groups_list.itemClicked.connect(self.show_delete_button)
+
+
+    def delete_group(self):
+        selected_item = self.groups_list.currentItem()
+        if selected_item:
+            index = self.groups_list.row(selected_item)
+            group_name = selected_item.text()  # Получаем имя группы для удаления
+            self.condition_manager.delete_group(index)  # Удаляем группу из менеджера условий
+            self.load_groups()  # Обновляем список групп
+            self.clear_inputs()  # Очищаем поля ввода
 
     def _create_input_fields(self, headers):
         for header in headers:
@@ -661,6 +677,13 @@ class ConditionGroupDialog(QDialog):
             from_input.clear()
             to_input.clear()
 
+    def show_delete_button(self):
+        if self.groups_list.currentItem() is not None:
+            self.delete_button.show()
+        else:
+            self.delete_button.hide()
+        
+
     def editGroup(self, groups):
         selected_item = self.groups_list.currentItem()
         if selected_item:
@@ -678,7 +701,7 @@ class ConditionGroupDialog(QDialog):
             # Изменение кнопки создания группы на кнопку редактирования
             self.create_button.setText("Редактировать группу")
             self.create_button.clicked.disconnect()  # Отключаем старый обработчик
-            self.create_button.clicked.connect(lambda: self.update_group(index))   
+            self.create_button.clicked.connect(lambda: self.update_group(index))
 
     def update_group(self, index):
         group_name = self.group_name.text()
@@ -688,7 +711,8 @@ class ConditionGroupDialog(QDialog):
         self.clear_inputs()
         self.create_button.setText("Создать группу")  # Возвращаем текст кнопки
         self.create_button.clicked.disconnect()  # Отключаем старый обработчик
-        self.create_button.clicked.connect(self.create_group)  # Подключаем обратно        
+        self.create_button.clicked.connect(self.create_group)  # Подключаем обратно
+        
 
 class EditDialog(QDialog):
     def __init__(self, data: dict, headers: list):
