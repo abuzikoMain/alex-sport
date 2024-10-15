@@ -463,6 +463,30 @@ class GroupValidator:
             if not (0 <= index < len(self.groups)):
                 raise IndexError(f"Индекс {index} вне диапазона групп.")
 
+    def validate_conditions_overlap(self, new_conditions: dict):
+            for attribute, new_values in new_conditions.items():
+                self._check_overlap(attribute, new_values)
+
+    def _check_overlap(self, attribute: str, new_values: dict):
+        for group in self.groups:
+            for existing_group in group.values():
+                if attribute in existing_group:
+                    existing_values = existing_group[attribute]
+                    if self._is_overlapping(new_values, existing_values):
+                        raise ValueError(f"Пересечение значений атрибута '{attribute}' с существующей группой.")
+
+    def _is_overlapping(self, new_values: dict, existing_values: dict) -> bool:
+        return new_values['min'] <= existing_values['max'] and new_values['max'] >= existing_values['min']
+        
+        # for group in self.groups:
+        #     for attribute, values in new_conditions.items():
+        #         for _, values_existing in group.items():
+        #             for attribute_old, exist_values in values_existing.items():
+        #                 if attribute == attribute_old:
+        #                     existing_values = exist_values
+        #                     if (values['min'] <= existing_values['max'] and values['max'] >= existing_values['min']):
+        #                         raise ValueError(f"Пересечение значений атрибута '{attribute}' с существующей группой.")                
+
 
 class ConditionManager:
     def __init__(self):
