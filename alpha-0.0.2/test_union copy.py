@@ -469,12 +469,12 @@ class GroupValidator:
                 raise ValueError("Условия не могут быть пустыми.")
                       
     def validate_group_index(self, index: int):
-            if not (0 <= index < len(self.groups)):
-                raise IndexError(f"Индекс {index} вне диапазона групп.")
+        if not (0 <= index < len(self.groups)):
+            raise IndexError(f"Индекс {index} вне диапазона групп.")
 
     def validate_conditions_overlap(self, new_conditions: dict):
-            for attribute, new_values in new_conditions.items():
-                self._check_overlap(attribute, new_values)
+        for attribute, new_values in new_conditions.items():
+            self._check_overlap(attribute, new_values)
 
     def _check_overlap(self, attribute: str, new_values: dict):
         for group in self.groups:
