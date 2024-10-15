@@ -170,15 +170,61 @@ class UserTableModel(QAbstractTableModel):
         status = self._data.status(key)
         return status.changed
 
-    def save_action(self) -> bool:
-        """Сохраняет измененные данные и создает атрибуты и пользователей."""
-        data = self.get_data_changed()
-        if data:
-            self.create_attributes()
-            status_user = self.create_users(data)
-            self._data.update_statuses(self._data.keys(), Status(new=False, changed=False, exist=True))
-            return status_user
-        return False
+    def save_action(self) -> tuple:
+            """Сохраняет измененные данные и создает атрибуты и пользователей."""
+            changed_data = self.get_data_changed()
+            del_data = self.get_deletion_data()
+            new_data = self.get_new_data()
+
+            error_code = 0  # 0 - успех, 1 - ошибка удаления, 2 - ошибка обновления, 3 - ошибка создания
+
+            if del_data:
+                error_code = self.delete_users(del_data)
+                if error_code != 0:
+                    return False, error_code
+
+            if changed_data:
+                error_code = self.update_users(changed_data)
+                if error_code != 0:
+                    return False, error_code
+
+            if new_data:
+                error_code = self.create_users(new_data)
+                if error_code != 0:
+                    return False, error_code
+
+            self.create_attributes()  # Создание атрибутов после всех операций
+            return True, None  # Успех
+
+    def delete_users(self, del_data) -> int:
+        """Удаляет пользователей и возвращает код ошибки."""
+        try:
+            for data in del_data.values():
+                self.user_manager.delete_user(data['user_id'])
+            self.clear_delation_data()
+            return 0  # Успех
+        except Exception as e:
+            return 1  # Код ошибки удаления
+
+    def update_users(self, changed_data) -> int:
+        """Обновляет пользователей и возвращает код ошибки."""
+        try:
+            for data in changed_data.values():
+                self.user_manager.update_data_user(data)
+            self._data.update_statuses(changed_data.keys(), Status(new=False, changed=False, exist=True))
+            return 0  # Успех
+        except Exception as e:
+            return 2  # Код ошибки обновления
+
+    def create_users(self, new_data) -> int:
+        """Создает пользователей и возвращает код ошибки."""
+        try:
+            self.create_attributes()  # Создание атрибутов перед созданием пользователей
+            self.user_manager.create_users(new_data)
+            self._data.update_statuses(new_data.keys(), Status(new=False, changed=False, exist=True))
+            return 0  # Успех
+        except Exception as e:
+            return 3  # Код ошибки создания
 
     def create_attributes(self):
         """Создает атрибуты для всех заголовков."""
@@ -198,6 +244,15 @@ class UserTableModel(QAbstractTableModel):
         has_false = not all(status_operations.values())
         return not has_false
 
+    def clear_delation_data(self):
+        self._data.clear_delation_data()
+        if self._data._delete_data:
+            return True
+        else:
+            return False
+
+    def get_deletion_data(self):
+        return self._data.get_deletion_data()
             
     def get_data(self):
         return self._data
