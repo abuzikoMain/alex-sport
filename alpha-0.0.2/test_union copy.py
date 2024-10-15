@@ -142,14 +142,28 @@ class UserTableModel(QAbstractTableModel):
         self._headers = headers
         self.copied_data = None  # Для хранения скопированных данных
 
+    def get_new_data(self) -> dict:
+        """Возвращает созданные данные."""
+        new_data = {}        
+        data_cp = self._data.copy()
+        for key, val in data_cp.items():
+            if self.is_data_new(key):
+                new_data[key] = val
+        return new_data
+    
     def get_data_changed(self) -> dict:
         """Возвращает измененные данные."""
         new_data = {}
         data_cp = self._data.copy()
         for key, val in data_cp.items():
-            if self.is_data_changed(key):
+            if self.is_data_changed(key) and not self.is_data_new(key):
                 new_data[key] = val
         return new_data
+
+    def is_data_new(self, key) -> bool:
+        """Проверяет, изменены ли данные по заданному ключу."""
+        status = self._data.status(key)
+        return status.new
 
     def is_data_changed(self, key) -> bool:
         """Проверяет, изменены ли данные по заданному ключу."""
