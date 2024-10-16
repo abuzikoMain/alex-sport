@@ -186,7 +186,6 @@ class UserTableModel(QAbstractTableModel):
             if error_code != 0:
                 return False, error_code
 
-            self.create_attributes()  # Создание атрибутов после всех операций
         return True, None  # Успех
 
     def delete_users(self, del_data) -> int:
@@ -215,6 +214,18 @@ class UserTableModel(QAbstractTableModel):
         """Создает атрибуты для всех заголовков."""
         for attribute in self._headers:
             self.attribute_manager.create_attribute(attribute)
+
+    def update_users_id(self):
+        user_ids = self.user_manager.latest_users_ids()
+        
+        new_value: dict = {}
+        for old_data in user_ids:
+            for row_id, attributes in old_data.attributes.items():
+                attributes['user_id'] = old_data.user_id
+                # new_value = attributes
+            self.set_data(row_id, attributes)
+            new_value.clear()
+        self.user_manager.clear_latests_users_ids()
 
     def create_users(self, data: dict) -> int:
         """Создает пользователей на основе измененных данных."""
