@@ -314,10 +314,36 @@ class UserManager:
         query = """
         UPDATE UserAttributes SET attribute_value = ? 
         WHERE user_id = ? AND attribute_key = ?;"""
-        for user_id, value in data.items():
-            for attribute_key, attribute_value in value.items():
-                self.db.cursor.execute(query, (attribute_value, user_id, attribute_key))
-        self.db.commit()                
+        for attribute_key, attribute_value in data.items():
+            if attribute_key == 'user_id':
+                continue
+            if self.validate_attribute_for_user(data['user_id'], attribute_key):
+                self.db.cursor.execute(query, (attribute_value, data['user_id'], attribute_key))
+            else:
+                self.reasign_attribute_for_user(data['user_id'], attribute_key=attribute_key)
+                self.db.cursor.execute(query, (attribute_value, data['user_id'], attribute_key))
+
+        self.db.commit()
+
+    def reasign_attribute_for_user(self, user_id, attribute_key):
+        query = "INSERT INTO UserAttributes (user_id, attribute_key) VALUES (?, ?);"
+        self.db.cursor.execute(query, (user_id, attribute_key))
+        self.db.commit()
+
+
+    def validate_attribute_for_user(self, user_id, attribute_key) -> bool:
+        query = """
+        SELECT id 
+        FROM UserAttributes
+        WHERE user_id = ? AND attribute_key = ?;  
+        """
+        self.db.cursor.execute(query, (user_id, attribute_key))
+        users_attributes = self.db.cursor.fetchall()
+        if users_attributes:
+            return True
+        else:
+            return False
+
 
     @staticmethod
     def generate_random_date(start_date: str, end_date: str) -> str:
