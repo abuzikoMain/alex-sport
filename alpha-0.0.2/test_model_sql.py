@@ -359,7 +359,7 @@ class AttributeManager:
         self.db = db
     
     def create_attribute(self, attribute_key: str, attribute_value=None):
-        if self.validate_attribute(attribute_key):
+        if not self.validate_attribute(attribute_key):
 
             # Запрос для получения последнего id
             query = "SELECT MAX(id) FROM Users;"
