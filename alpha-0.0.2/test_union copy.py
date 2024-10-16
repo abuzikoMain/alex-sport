@@ -135,7 +135,7 @@ class StatusManager:
 class UserTableModel(QAbstractTableModel):
     def __init__(self, headers, user_manager: UserManager, attribute_manager: AttributeManager):
         super().__init__()
-        self._data: ObservableDict = {}
+        self._data: ObservableDict
         self.user_manager = user_manager
         self.attribute_manager = attribute_manager
         # Данные в формате {row_id: {header_name: value}}
@@ -177,6 +177,9 @@ class UserTableModel(QAbstractTableModel):
             new_data = self.get_new_data()
 
             error_code = 0  # 0 - успех, 1 - ошибка удаления, 2 - ошибка обновления, 3 - ошибка создания
+            
+            if del_data or changed_data or new_data:
+                self.create_attributes()
 
             if del_data:
                 error_code = self.delete_users(del_data)
@@ -216,30 +219,38 @@ class UserTableModel(QAbstractTableModel):
         except Exception as e:
             return 2  # Код ошибки обновления
 
-    def create_users(self, new_data) -> int:
-        """Создает пользователей и возвращает код ошибки."""
-        try:
-            self.create_attributes()  # Создание атрибутов перед созданием пользователей
-            self.user_manager.create_users(new_data)
-            self._data.update_statuses(new_data.keys(), Status(new=False, changed=False, exist=True))
-            return 0  # Успех
-        except Exception as e:
-            return 3  # Код ошибки создания
+    # def create_users(self, new_data) -> int:
+        # """Создает пользователей и возвращает код ошибки."""
+        # try:
+        #     # self.create_attributes()  # Создание атрибутов перед созданием пользователей
+        #     self.user_manager.create_users(new_data)
+        #     self._data.update_statuses(new_data.keys(), Status(new=False, changed=False, exist=True))
+        #     return 0  # Успех
+        # except Exception as e:
+        #     return 3  # Код ошибки создания
 
     def create_attributes(self):
         """Создает атрибуты для всех заголовков."""
         for attribute in self._headers:
             self.attribute_manager.create_attribute(attribute)
 
-    def create_users(self, data: dict):
+    def create_users(self, data: dict) -> int:
         """Создает пользователей на основе измененных данных."""
+        try:
+            status_operations = {}
 
-        status_operations = {}
-
-        for key, val in data.items():
-            t_dic = {key: val}
-            status_operation = self.user_manager.create_user(t_dic)
-            status_operations[key] = status_operation
+            for key, val in data.items():
+                t_dic = {key: val}
+                status_operation = self.user_manager.create_user(t_dic)
+                status_operations[key] = status_operation
+                if status_operation == True:
+                    self._data.update_status(key, Status(False, False, True))
+                    
+            not_have_false = all(status_operations.values())
+            if not_have_false:
+                return 0
+        except Exception as e:
+            return 3
 
         has_false = not all(status_operations.values())
         return not has_false
@@ -401,6 +412,8 @@ class UserTableModel(QAbstractTableModel):
 
         self.endRemoveColumns()
         self.layoutChanged.emit()  # Уведомляем об изменении данных
+
+        self.attribute_manager.delete_attribute(key)
 
     def loadDataFromExcel(self, file_path):
         # Считываем данные из Excel, начиная с первой строки и первого столбца
