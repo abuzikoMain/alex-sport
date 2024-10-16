@@ -125,7 +125,56 @@ class UserManager:
         # {row_id: {header_name: value, header_name: value}, row_id: {header_name: value}}
         return users
 
-    def select_user(self, user_id):
+    def select_users_id_by_attribute(self, attributes: dict[str, str]) -> dict:
+        """
+        Возвращает список user_id для пользователей
+        return -> dict{row_id: user_id}
+        """
+        lst = {}
+        for row_id, value in attributes.items(): 
+            self.select_user_id_by_attribute(value)
+            lst[row_id] = value
+        return lst            
+
+    def select_user_id_by_attribute(self, attributes: dict[str, str]) -> int:
+        """
+        Возвращает user_id для одного user по аттрибутам
+        """
+        query = """
+        SELECT 
+            u.id AS user_id
+        FROM 
+            Users u
+        LEFT JOIN 
+            UserAttributes ua ON u.id = ua.user_id
+        """
+
+        params = []
+        conditions = []
+
+
+        # Assuming value is a dictionary of attribute_key: attribute_value pairs
+        for val_key, val_attr in attributes.items():
+            conditions.append(f"(ua.attribute_key = ? AND ua.attribute_value = ?)")
+            params.append(val_key)
+            params.append(val_attr)
+
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+
+        query += """
+        GROUP BY 
+            u.id;
+        """
+
+        print(params, query)
+        self.db.cursor.execute(query, params)
+        user = self.db.cursor.fetchall()
+        if len(user) > 1:
+            raise ValueError("Из запроса по аттрибутам получено несколько пользователей. Ожидается один. ")
+        return user[0] 
+
+    def select_user(self, user_id: str):        
         query = """
         SELECT 
             u.id AS user_id,
