@@ -233,12 +233,12 @@ class UserTableModel(QAbstractTableModel):
             status_operations = {}
 
             for key, val in data.items():
-                t_dic = {key: val}
-                status_operation = self.user_manager.create_user(t_dic)
+                status_operation = self.user_manager.create_user({key: val})
                 status_operations[key] = status_operation
                 if status_operation == True:
                     self._data.update_status(key, Status(False, False, True))
-                    
+
+            self.update_users_id()
             not_have_false = all(status_operations.values())
             if not_have_false:
                 return 0
