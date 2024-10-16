@@ -78,6 +78,13 @@ class User:
 class UserManager:
     def __init__(self, db: Database):
         self.db = db
+        self._latest_user_id_add = []
+
+    def latest_users_ids(self) -> list[User]:
+        return self._latest_user_id_add.copy()
+    
+    def clear_latests_users_ids(self):
+        return self._latest_user_id_add.clear()
 
     def select_all(self, return_type: str = None):
         """
