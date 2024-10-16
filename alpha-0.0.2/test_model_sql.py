@@ -386,7 +386,7 @@ class AttributeManager:
         exists = self.db.cursor.fetchone() is not None
         
         # Если запись найдена, значит атрибут существует
-        return not exists
+        return exists
         
     def delete_attribute(self, attribute_key):
         query = """
