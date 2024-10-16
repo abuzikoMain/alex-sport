@@ -13,6 +13,7 @@ from docx import Document
 from test_model_sql import *
 from collections import defaultdict
 
+from test_model_sql import *
 # Список из 30 имен
 names = [
     "Александр", "Мария", "Дмитрий", "Елена", "Сергей",
