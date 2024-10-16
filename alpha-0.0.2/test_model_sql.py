@@ -409,9 +409,8 @@ class AttributeManager:
     def rename_attribute(self, attribute_key, new_attribute_key):
         self.db.cursor.execute("UPDATE UserAttributes SET attribute_key = ? WHERE attribute_key = ?", (new_attribute_key, attribute_key))
         self.db.cursor.execute("UPDATE UserAttributes SET attribute_name = ? WHERE attribute_name = ?", (new_attribute_key, attribute_key))
-        self.db.conn.commit()  # Сохранение изменений
+        self.db.commit()  # Сохранение изменений
     
-
     def names_all_attributes(self):
         query = """
         SELECT attribute_name AS unique_attribute_key_count
