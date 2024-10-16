@@ -108,7 +108,7 @@ class StatusManager:
     def __init__(self):
         self._statuses = defaultdict(Status) 
 
-    def get_status(self, key):
+    def get_status(self, key) -> Status:
         """Получает статус для указанного ключа."""
         return self._statuses[key]  # Теперь не нужно проверять наличие ключа
 
@@ -210,7 +210,7 @@ class UserTableModel(QAbstractTableModel):
         except Exception as e:
             return 1  # Код ошибки удаления
 
-    def update_users(self, changed_data) -> int:
+    def update_users(self, changed_data: dict) -> int:
         """Обновляет пользователей и возвращает код ошибки."""
         try:
             for data in changed_data.values():
@@ -219,16 +219,6 @@ class UserTableModel(QAbstractTableModel):
             return 0  # Успех
         except Exception as e:
             return 2  # Код ошибки обновления
-
-    # def create_users(self, new_data) -> int:
-        # """Создает пользователей и возвращает код ошибки."""
-        # try:
-        #     # self.create_attributes()  # Создание атрибутов перед созданием пользователей
-        #     self.user_manager.create_users(new_data)
-        #     self._data.update_statuses(new_data.keys(), Status(new=False, changed=False, exist=True))
-        #     return 0  # Успех
-        # except Exception as e:
-        #     return 3  # Код ошибки создания
 
     def create_attributes(self):
         """Создает атрибуты для всех заголовков."""
@@ -252,9 +242,6 @@ class UserTableModel(QAbstractTableModel):
                 return 0
         except Exception as e:
             return 3
-
-        has_false = not all(status_operations.values())
-        return not has_false
 
     def clear_delation_data(self):
         self._data.clear_delation_data()
@@ -545,7 +532,6 @@ class GroupValidator:
     def __init__(self, groups):
         self.groups = groups
 
-
     def validate_group_name(self, group_name: str):
         if not group_name:
             raise ValueError("Имя группы не может быть пустым.")
@@ -558,7 +544,7 @@ class GroupValidator:
         for value in conditions.values():
             if any(attrValue in (None, '',) for attrValue in value.values()):
                 raise ValueError("Условия не могут быть пустыми.")
-                      
+
     def validate_group_index(self, index: int):
         if not (0 <= index < len(self.groups)):
             raise IndexError(f"Индекс {index} вне диапазона групп.")
@@ -577,16 +563,7 @@ class GroupValidator:
 
     def _is_overlapping(self, new_values: dict, existing_values: dict) -> bool:
         return new_values['min'] <= existing_values['max'] and new_values['max'] >= existing_values['min']
-        
-        # for group in self.groups:
-        #     for attribute, values in new_conditions.items():
-        #         for _, values_existing in group.items():
-        #             for attribute_old, exist_values in values_existing.items():
-        #                 if attribute == attribute_old:
-        #                     existing_values = exist_values
-        #                     if (values['min'] <= existing_values['max'] and values['max'] >= existing_values['min']):
-        #                         raise ValueError(f"Пересечение значений атрибута '{attribute}' с существующей группой.")                
-
+           
 
 class ConditionManager:
     def __init__(self):
@@ -695,7 +672,6 @@ class Group(dict):
             return f"Группа {key}"
         return f"{super().__str__()}"
   
-
 class ConditionGroupDialog(QDialog):
     def __init__(self, headers: list[str, str, Any], condition_manager: ConditionManager):
         super().__init__()
