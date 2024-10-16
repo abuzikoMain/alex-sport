@@ -197,6 +197,7 @@ class UserManager:
     def create_user(self, attributes: dict) -> bool:
         user = User(attributes)
         st = user.insert(self.db)
+        self._latest_user_id_add.append(user)
         self.db.commit()
         return st
     
