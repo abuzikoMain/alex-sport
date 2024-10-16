@@ -425,6 +425,9 @@ class ObservableDict(dict):
         self._delete_data = {}
         self._status_manager = StatusManager()
 
+    def items(self):
+        return self._internal_data.items()
+
     @property
     def data(self):
         return self._internal_data if self._internal_data else {}
@@ -523,6 +526,7 @@ class ObservableDict(dict):
     def __delitem__(self, key):
         if key in self._internal_data:
             self._delete_data[key] = self._internal_data[key]
+            self._delete_data[key]['old_row_id'] = key
             del self._internal_data[key]
             # Удаляем статус элемента
             self._status_manager.remove_status(key)
@@ -604,7 +608,7 @@ class ConditionManager:
 
 # Основное окно приложения
 class MainWindow(QMainWindow):
-    def __init__(self, model):
+    def __init__(self, model: UserTableModel):
         super().__init__()
 
         self.setWindowTitle("Пример QTableView с добавлением колонки")
@@ -968,7 +972,10 @@ class TableController:
         if dialog.exec() == QDialog.Accepted:
             if column_name := dialog.getColumnName():
                 self.model.addColumn(column_name)
-
+                for key, attr in self.model._data.items():
+                    attr[column_name] = ''
+                    self.model._data.update_status(key, Status(False, True, True))
+                
     def add_row(self):
         self.model.addRow()
 
@@ -976,7 +983,7 @@ class TableController:
         if selected_indexes := self.window.table_view.selectedIndexes():
             rows = set(index.row() for index in selected_indexes)
             columns = set(index.column() for index in selected_indexes)
-            self.model.copyData(rows, columns)
+            self.model.copyData(rows, columns)            
 
     def paste_data(self):
         selected_index = self.window.table_view.currentIndex()
@@ -993,6 +1000,9 @@ class TableController:
         for column in columns_to_remove:
             self.model.removeColumn(column)
 
+
+
+        
 
     def remove_row(self):
         selected_indexes = self.window.table_view.selectedIndexes()
@@ -1036,7 +1046,6 @@ class AppController:
 
         self.window = MainWindow(self.model)
         self.condition_groups = []
-        self.table_controller = TableController(self.model, self.window)
         self.condition_controller = ConditionController()
 
         self.table_controller = TableController(self.model, self.window, self.condition_controller)
