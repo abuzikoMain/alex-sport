@@ -16,10 +16,12 @@ class Database:
 class User:
     def __init__(self, attributes):
         self.attributes = attributes
+        self.user_id = None
 
     def insert(self, db: Database) -> bool:
         """Вставка нового пользователя и его атрибутов в базу данных."""
         user_id = self.insert_user(db)
+        self.user_id = user_id
         if user_id is None:
             return False  # Не удалось создать пользователя
 
