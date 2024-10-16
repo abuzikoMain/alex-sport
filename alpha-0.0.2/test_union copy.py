@@ -162,39 +162,40 @@ class UserTableModel(QAbstractTableModel):
         return status.changed
 
     def save_action(self) -> tuple:
-            """Сохраняет измененные данные и создает атрибуты и пользователей."""
-            changed_data = self.get_data_changed()
-            del_data = self.get_deletion_data()
-            new_data = self.get_new_data()
+        """Сохраняет измененные данные и создает атрибуты и пользователей."""
+        self.create_attributes()
 
-            error_code = 0  # 0 - успех, 1 - ошибка удаления, 2 - ошибка обновления, 3 - ошибка создания
-            
-            if del_data or changed_data or new_data:
-                self.create_attributes()
+        changed_data = self.get_data_changed()
+        del_data = self.get_deletion_data()
+        new_data = self.get_new_data()
 
-            if del_data:
-                error_code = self.delete_users(del_data)
-                if error_code != 0:
-                    return False, error_code
+        error_code = 0  # 0 - успех, 1 - ошибка удаления, 2 - ошибка обновления, 3 - ошибка создания
+        
+        if del_data:
+            error_code = self.delete_users(del_data)
+            if error_code != 0:
+                return False, error_code
 
-            if changed_data:
-                error_code = self.update_users(changed_data)
-                if error_code != 0:
-                    return False, error_code
+        if changed_data:
+            error_code = self.update_users(changed_data)
+            if error_code != 0:
+                return False, error_code
 
-            if new_data:
-                error_code = self.create_users(new_data)
-                if error_code != 0:
-                    return False, error_code
+        if new_data:
+            error_code = self.create_users(new_data)
+            if error_code != 0:
+                return False, error_code
 
             self.create_attributes()  # Создание атрибутов после всех операций
-            return True, None  # Успех
+        return True, None  # Успех
 
     def delete_users(self, del_data) -> int:
         """Удаляет пользователей и возвращает код ошибки."""
         try:
             for data in del_data.values():
-                self.user_manager.delete_user(data['user_id'])
+                user_id = data.get('user_id')
+                if user_id:
+                    self.user_manager.delete_user(user_id)
             self.clear_delation_data()
             return 0  # Успех
         except Exception as e:
