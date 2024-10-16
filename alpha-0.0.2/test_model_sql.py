@@ -386,21 +386,25 @@ class AttributeManager:
         exists = self.db.cursor.fetchone() is not None
         
         # Если запись найдена, значит атрибут существует
-        return exists
-        
-    def delete_attribute(self, attribute_key):
-        query = """
-        DELETE FROM UserAttributes
-        WHERE attribute_key = ?;""" 
+        return exists         
+    def delete_attribute(self, attribute_key: str) -> bool:
+        if self.validate_attribute(attribute_key):
+            query = """
+            DELETE FROM UserAttributes
+            WHERE attribute_key = ?;""" 
 
-        self.db.cursor.execute(query, (attribute_key,))
+            self.db.cursor.execute(query, (attribute_key,))
 
-        query = """
-        DELETE FROM Attributes
-        WHERE attribute_name = ?;""" 
+            query = """
+            DELETE FROM Attributes
+            WHERE attribute_name = ?;""" 
 
-        self.db.cursor.execute(query, (attribute_key,))
-        self.db.conn.commit()  # Сохранение изменений
+            self.db.cursor.execute(query, (attribute_key,))
+            self.db.commit()  # Сохранение изменений
+
+            return True
+        else:
+            return False
 
     def rename_attribute(self, attribute_key, new_attribute_key):
         self.db.cursor.execute("UPDATE UserAttributes SET attribute_key = ? WHERE attribute_key = ?", (new_attribute_key, attribute_key))
