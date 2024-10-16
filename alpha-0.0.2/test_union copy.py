@@ -394,14 +394,17 @@ class UserTableModel(QAbstractTableModel):
         self.beginRemoveColumns(self.index(0, column), column, column)
         # Удаляем заголовок колонки
         key = self._headers[column]
-        del self._headers[column]
-        
-        # Удаляем данные в каждой строке для этой колонки
-        for row in self._data.values():
-            del row[key]  # Убедитесь, что вы удаляете правильный ключ
+        if key:
+            del self._headers[column]
 
         self.endRemoveColumns()
         self.layoutChanged.emit()  # Уведомляем об изменении данных
+
+        # Удаляем данные в каждой строке для этой колонки 
+        for row_id, attr_value in self._data.items():
+            if key in attr_value:
+                del attr_value[key]  # Убедитесь, что вы удаляете правильный ключ
+
 
         self.attribute_manager.delete_attribute(key)
 
