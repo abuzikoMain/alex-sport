@@ -1,5 +1,6 @@
 import sys
 from typing import Any
+from test_model_sql import *
 import pandas as pd
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QTableView, QVBoxLayout, QWidget,
@@ -10,7 +11,6 @@ from PySide6.QtCore import Qt, QAbstractTableModel
 from PySide6.QtGui import (QAction)
 from openpyxl import Workbook
 from docx import Document
-from test_model_sql import *
 from collections import defaultdict
 
 
@@ -82,7 +82,6 @@ class TextEditorUI(QMainWindow):
             content = self.text_edit.toPlainText()
             self.controller.set_content(content)  # Устанавливаем контент в контроллер
             self.controller.save_file(file_name)  # Сохраняем файл
-
 
 class Status:
     __slots__ = ['new', 'changed', 'exist']
@@ -185,7 +184,7 @@ class UserTableModel(QAbstractTableModel):
             error_code = self.create_users(new_data)
             if error_code != 0:
                 return False, error_code
-
+            
         return True, None  # Успех
 
     def delete_users(self, del_data) -> int:
@@ -505,6 +504,7 @@ class ObservableDict(dict):
         return key in self._internal_data
 
     def __getitem__(self, key: Any) -> Any:
+        print(self._internal_data)
         return self._internal_data.__getitem__(key)
 
     def __setitem__(self, key, value):
@@ -522,6 +522,11 @@ class ObservableDict(dict):
 
         self._internal_data[key] = value
         self._status_manager.update_status(key, status)
+
+    def delitem(self, key):
+        if key in self._internal_data:
+            self._delete_data[key] = self._internal_data[key]
+            self._delete_data[key]['old_row_id'] = key
 
     def __delitem__(self, key):
         if key in self._internal_data:
@@ -573,7 +578,6 @@ class GroupValidator:
     def _is_overlapping(self, new_values: dict, existing_values: dict) -> bool:
         return new_values['min'] <= existing_values['max'] and new_values['max'] >= existing_values['min']
            
-
 class ConditionManager:
     def __init__(self):
         self.groups = []
@@ -794,7 +798,6 @@ class ConditionGroupDialog(QDialog):
         self.create_button.clicked.disconnect()  # Отключаем старый обработчик
         self.create_button.clicked.connect(self.create_group)  # Подключаем обратно
         
-
 class EditDialog(QDialog):
     def __init__(self, data: dict, headers: list):
         super().__init__()
@@ -998,11 +1001,7 @@ class TableController:
 
         columns_to_remove = sorted(set(index.column() for index in selected_indexes), reverse=True)
         for column in columns_to_remove:
-            self.model.removeColumn(column)
-
-
-
-        
+            self.model.removeColumn(column)      
 
     def remove_row(self):
         selected_indexes = self.window.table_view.selectedIndexes()
