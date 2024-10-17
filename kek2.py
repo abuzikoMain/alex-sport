@@ -196,19 +196,86 @@ class GroupDataWindow(QWidget):
         else:
             QMessageBox.information(self, "Группировка", "Нет данных, соответствующих условиям.")
 
+class TableWidget(QTableWidget):
+    def __init__(self):
+        super().__init__()
+
+    def setItem(self, row, column, item: QTableWidgetItem):
+        super().setItem(row, column, item)
+
+
+class TableStateManager:
+    def __init__(self, table_widget: QTableWidget):
+        self.table_widget = table_widget
+        self.undo_stack = []
+
+
+    def save_table_state(self):
+        current_state = {
+            "columns": [self.table_widget.horizontalHeaderItem(col).text() for col in range(self.table_widget.columnCount())],
+            "data": []
+        }
+
+        for row in range(self.table_widget.rowCount()):
+            row_data = []
+            for col in range(self.table_widget.columnCount()):
+                item = self.table_widget.item(row, col)
+                row_data.append(item.text() if item else "")
+            current_state["data"].append(row_data)
+
+        self.undo_stack.append(current_state)
+
+        # Ограничиваем размер стека
+        if len(self.undo_stack) > 10:
+            self.undo_stack.pop(0)
+
+    def load_table_state(self, filename="table_state.pkl"):
+        try:
+            with open(filename, "rb") as f:
+                table_state = pickle.load(f)
+
+            self.table_widget.setColumnCount(len(table_state["columns"]))
+            self.table_widget.setHorizontalHeaderLabels(table_state["columns"])
+            self.table_widget.setRowCount(len(table_state["data"]))
+
+            for row in range(len(table_state["data"])):
+                for col in range(len(table_state["columns"])):
+                    self.table_widget.setItem(row, col, QTableWidgetItem(table_state["data"][row][col]))
+
+        except FileNotFoundError:
+            QMessageBox.warning(self.table_widget, "Ошибка", "Состояние таблицы не найдено.")
+
+    def undo(self):
+        if not self.undo_stack:
+            QMessageBox.information(self.table_widget, "Отмена", "Нет доступных действий для отмены.")
+            return
+
+        last_state = self.undo_stack.pop()
+
+        self.table_widget.setColumnCount(len(last_state["columns"]))
+        self.table_widget.setHorizontalHeaderLabels(last_state["columns"])
+        self.table_widget.setRowCount(len(last_state["data"]))
+
+        for row in range(len(last_state["data"])):
+            for col in range(len(last_state["columns"])):
+                self.table_widget.setItem(row, col, QTableWidgetItem(last_state["data"][row][col]))
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
         self.undo_stack = []
+        self.first_start_app = True
 
         self.setWindowTitle("Таблица данных")
         self.setGeometry(100, 100, 800, 600)
 
-        self.table_widget = QTableWidget()
+        self.table_widget = TableWidget()
         self.table_widget.setColumnCount(0)
         self.table_widget.setRowCount(0)
-        # self.table_widget.itemChanged.connect(self.save_table_state)
+        self.table_widget.itemChanged.connect(self.item_changed)
+
+        self.state_manager = TableStateManager(self.table_widget)
 
         self.add_column_button = QPushButton("Добавить столбец")
         self.add_column_button.clicked.connect(self.add_column)
@@ -234,11 +301,11 @@ class MainWindow(QMainWindow):
         self.load_template_button.clicked.connect(self.load_template)
 
         self.save_table_state_button = QPushButton("Сохранить состояние таблицы")
-        self.save_table_state_button.clicked.connect(self.save_table_state)
+        self.save_table_state_button.clicked.connect(self.state_manager.save_table_state)
 
         self.load_table_state_button = QPushButton("Загрузить состояние таблицы")
-        self.load_table_state_button.clicked.connect(self.load_table_state)
-        self.load_table_state()  # Загружаем состояние таблицы при запуске
+        self.load_table_state_button.clicked.connect(self.state_manager.load_table_state)
+        self.state_manager.load_table_state()  # Загружаем состояние таблицы при запуске
 
         self.copy_button = QPushButton("Копировать")
         self.copy_button.clicked.connect(self.copy_to_clipboard)
@@ -272,6 +339,19 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(container)
 
         self.load_template()  # Загружаем шаблон при запуске
+
+    def item_changed(self, item: QTableWidgetItem):
+        if self.first_start_app:
+           self.save_table_state()
+        elif self.undo_stack and len(self.undo_stack) > 1:            
+            row = item.row()
+            col = item.column()
+            past = self.undo_stack[len(self.undo_stack) - 1]['data'][row][col]
+            new = self.table_widget.item(row, col).text()
+            if past != new:
+                self.save_table_state()
+
+
 
     # Не забудьте сохранить состояние при редактировании ячеек
     def save_table_state(self):
@@ -381,6 +461,7 @@ class MainWindow(QMainWindow):
             return
 
         last_state = self.undo_stack.pop()  # Извлекаем последнее состояние из стека
+        last_state = self.undo_stack.pop()
 
         # Восстанавливаем состояние таблицы
         self.table_widget.setColumnCount(len(last_state["columns"]))
