@@ -1,12 +1,25 @@
 import sys
 import pickle
+import random
+import time
 import pandas as pd
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton,
     QTableWidget, QTableWidgetItem, QLineEdit, QInputDialog, QMessageBox, QLabel, QComboBox, QHBoxLayout,
-    QFileDialog
+    QFileDialog, QCheckBox
 )
-from PySide6.QtGui import QClipboard, QAction
+from PySide6.QtGui import QClipboard, QAction, QIntValidator
+
+class GroupCondition:
+    def __init__(self, column, min_value=None, max_value=None, selected_value=None):
+        self.column = column
+        self.min_value = min_value
+        self.max_value = max_value
+        self.selected_value = selected_value
+
+    def __repr__(self):
+        return f"GroupCondition(column={self.column}, min_value={self.min_value}, max_value={self.max_value}, selected_value={self.selected_value})"
+
 
 class GroupDataWindow(QWidget):
     def __init__(self, table_widget):
@@ -18,12 +31,26 @@ class GroupDataWindow(QWidget):
 
         self.group_conditions = []
 
-        self.group_column_combo = QComboBox()
-        self.group_column_combo.setPlaceholderText("Выберите столбец для группировки")
-        self.group_column_combo.currentIndexChanged.connect(self.update_unique_values)
-
         self.condition_layout = QVBoxLayout()
         self.condition_layout.addWidget(QLabel("Условия группировки:"))
+
+        # Добавляем чекбокс "Группа"
+        self.group_checkbox = QCheckBox("Группа")
+        self.group_checkbox.stateChanged.connect(self.toggle_input)
+
+        # Поле ввода для количества человек
+        self.group_input = QLineEdit()
+        self.group_input.setPlaceholderText("Введите количество человек")
+        self.group_input.setEnabled(False)  # Изначально поле недоступно
+
+                # Устанавливаем валидатор для целых чисел
+        int_validator = QIntValidator()
+        self.group_input.setValidator(int_validator)
+
+        # Горизонтальный макет для чекбокса и поля ввода
+        h_layout = QHBoxLayout()
+        h_layout.addWidget(self.group_checkbox)
+        h_layout.addWidget(self.group_input)        
 
         self.add_condition_button = QPushButton("Добавить условие")
         self.add_condition_button.clicked.connect(self.add_condition)
@@ -33,13 +60,28 @@ class GroupDataWindow(QWidget):
 
         layout = QVBoxLayout()
         layout.addLayout(self.condition_layout)
+        layout.addLayout(h_layout) 
         layout.addWidget(self.add_condition_button)
         layout.addWidget(self.group_button)
 
         self.setLayout(layout)
 
-        # Заполнение комбобокса столбцами из таблицы
-        self.populate_columns()
+    def toggle_input(self, state):
+        if state == 2:  # Если чекбокс отмечен
+            self.group_input.setEnabled(True)
+        else:  # Если чекбокс не отмечен
+            self.group_input.setEnabled(False)
+            self.group_input.clear()  # Очищаем поле ввода
+                    
+
+    def remove_condition(self, condition_widget):
+        # Удаляем условие из интерфейса
+        self.condition_layout.removeWidget(condition_widget)
+        condition_widget.deleteLater()
+
+        # Удаляем условие из списка
+        self.group_conditions = [cond for cond in self.group_conditions if cond[0].parent() != condition_widget]
+
 
     def add_condition(self):
         condition_widget = QWidget()
@@ -61,10 +103,15 @@ class GroupDataWindow(QWidget):
         # Обработчик изменения выбора столбца
         column_combo.currentIndexChanged.connect(lambda: self.update_value_selection(column_combo, value_selection_combo, min_value_input, max_value_input))
 
+        # Кнопка для удаления условия
+        remove_condition_button = QPushButton("Удалить условие")
+        remove_condition_button.clicked.connect(lambda: self.remove_condition(condition_widget))
+
         condition_layout.addWidget(column_combo)
         condition_layout.addWidget(min_value_input)
         condition_layout.addWidget(max_value_input)
         condition_layout.addWidget(value_selection_combo)
+        condition_layout.addWidget(remove_condition_button)
 
         condition_widget.setLayout(condition_layout)
         self.condition_layout.addWidget(condition_widget)
@@ -74,7 +121,6 @@ class GroupDataWindow(QWidget):
     def update_value_selection(self, column_combo, value_selection_combo, min_value_input, max_value_input):
         column_name = column_combo.currentText()
         column_index = self.get_column_index(column_name)
-        column_index = 0
         if column_index is not None:
             is_numeric = True
             unique_values = set()
@@ -101,86 +147,148 @@ class GroupDataWindow(QWidget):
                 value_selection_combo.addItems(unique_values)
                 value_selection_combo.setEnabled(True)
 
-    def update_unique_values(self):
-        # Этот метод будет вызываться при изменении выбранного столбца для группировки
-        column_name = self.group_column_combo.currentText()
-        column_index = self.get_column_index(column_name)
-
-        if column_index is not None:
-            is_numeric = True
-            unique_values = set()
-
-            for row in range(self.table_widget.rowCount()):
-                item = self.table_widget.item(row, column_index)
-                if item:
-                    try:
-                        float(item.text())  # Проверка на числовое значение
-                    except ValueError:
-                        is_numeric = False
-                        unique_values.add(item.text())
-
-            # Обновление комбобокса значений в зависимости от типа данных
-            if is_numeric:
-                self.min_value_input.setEnabled(True)
-                self.max_value_input.setEnabled(True)
-            else:
-                self.min_value_input.clear()
-                self.max_value_input.clear()
-                self.min_value_input.setEnabled(False)
-                self.max_value_input.setEnabled(False)
-                self.value_selection_combo.clear()
-                self.value_selection_combo.addItems(unique_values)
-                self.value_selection_combo.setEnabled(True)
-
-    def populate_columns(self):
-        self.group_column_combo.clear()
-        for index in range(self.table_widget.columnCount()):
-            column_name = self.table_widget.horizontalHeaderItem(index).text()
-            self.group_column_combo.addItem(column_name)
-
     def group_data(self):
-        column_name = self.group_column_combo.currentText()
-        if not column_name:
-            QMessageBox.warning(self, "Ошибка", "Выберите столбец для группировки.")
-            return
+        # Здесь мы будем собирать условия и выполнять группировку
+        self.group_conditions_list = []
+        for column_combo, min_value_input, max_value_input, value_selection_combo in self.group_conditions:
+            column = column_combo.currentText()
+            min_value = min_value_input.text() if min_value_input.isEnabled() else None
+            max_value = max_value_input.text() if max_value_input.isEnabled() else None
+            selected_value = value_selection_combo.currentText() if value_selection_combo.isEnabled() else None
+            
+            # Создаем объект GroupCondition и добавляем его в список
+            condition = GroupCondition(column, min_value, max_value, selected_value)
+            self.group_conditions_list.append(condition)
 
-        column_index = self.get_column_index(column_name)
-        if column_index is None:
-            QMessageBox.warning(self, "Ошибка", "Столбец не найден.")
-            return
-
-        grouped_data = []
-        for row in range(self.table_widget.rowCount()):
-            item = self.table_widget.item(row, column_index)
-            if item:
-                match = True
-                for column_combo, min_value_input, max_value_input, value_selection_combo in self.group_conditions:
-                    condition_column_index = self.get_column_index(column_combo.currentText())
-                    if condition_column_index is not None:
-                        # Проверка на наличие значения в списке
-                        if value_selection_combo.isEnabled() and value_selection_combo.currentText():
-                            selected_value = value_selection_combo.currentText()
-                            if self.table_widget.item(row, condition_column_index).text() != selected_value:
-                                match = False
-                                break
-                        else:
-                            try:
-                                value = float(self.table_widget.item(row, condition_column_index).text())
-                                min_value = float(min_value_input.text()) if min_value_input.text() else float('-inf')
-                                max_value = float(max_value_input.text()) if max_value_input.text() else float('inf')
-
-                                if not (min_value <= value <= max_value):
-                                    match = False
-                                    break
-                            except ValueError:
-                                match = False
-                                break
-
-                if match:
-                    grouped_data.append([self.table_widget.item(row, col).text() if self.table_widget.item(row, col) else "" for col in range(self.table_widget.columnCount())])
-
+        # Здесь вы можете вызвать метод для обработки группировки данных
+        grouped_data = self.perform_grouping(self.group_conditions_list)
         self.show_grouped_data(grouped_data)
 
+        # Сохранение сгруппированных данных в Excel
+        if grouped_data:
+            self.save_grouped_data_to_excel(grouped_data)
+
+    def save_grouped_data_to_excel(self, grouped_data):
+        # Открываем диалог выбора директории
+        options = QFileDialog.Options()
+        file_name, _ = QFileDialog.getSaveFileName(self, "Сохранить файл", "", "Excel Files (*.xlsx);;All Files (*)", options=options)
+        
+        if file_name:
+            # Преобразуем сгруппированные данные в DataFrame
+            grouped_data = self.transform_grouped_data(grouped_data)
+
+            # Сохраняем DataFrame в файл Excel
+            try:
+                self.export_to_excel(grouped_data, filename=file_name)  # Установите index=True, если хотите сохранить индексы
+                QMessageBox.information(self, "Успех", "Данные успешно сохранены в Excel.")
+            except Exception as e:
+                QMessageBox.critical(self, "Ошибка", f"Не удалось сохранить файл: {str(e)}")                           
+
+    def export_to_excel(self, data, filename='output.xlsx'):
+        # Создаем новый Excel файл
+        with pd.ExcelWriter(filename, engine='openpyxl') as writer:
+            # Начальная строка для первой группы
+            start_row = 0
+            
+            # Проходим по каждой группе данных
+            for i, group in enumerate(data):
+                # Создаем DataFrame из текущего словаря
+                df = pd.DataFrame(group)
+                
+                # Записываем DataFrame в Excel, добавляя отступ между группами
+                df.to_excel(writer, sheet_name='Лист1', index=False, startrow=start_row)
+                
+                # Обновляем начальную строку для следующей группы (добавляем 2 строки отступа)
+                start_row += len(df) + 2  # +2 для отступа
+
+        print(f"Данные успешно записаны в файл {filename}")
+
+
+    def transform_grouped_data(self, grouped_data):
+        groups = []
+        
+        for group in grouped_data:
+            # Создаем словарь для хранения данных
+            data = {}
+            
+            # Инициализируем списки для каждого ключа
+            keys = group[0].keys()  # Предполагаем, что все словари имеют одинаковые ключи
+            for key in keys:
+                data[key] = []
+            
+            # Заполняем списки данными из каждого словаря в группе
+            for item in group:
+                for key in keys:
+                    data[key].append(item[key])
+            
+            # Добавляем сформированный словарь в список групп
+            groups.append(data)
+        
+        return groups
+
+    def perform_grouping(self, conditions):
+        grouped_data = []
+        row_count = self.table_widget.rowCount()
+
+            # Сохраняем заголовки столбцов
+        headers = [self.table_widget.horizontalHeaderItem(i).text() for i in range(self.table_widget.columnCount())]
+
+        for row in range(row_count):
+            row_data = {}
+            match = True
+
+            for condition in conditions:
+                column_index = self.get_column_index(condition.column)
+                if column_index is None:
+                    continue  # Пропускаем, если столбец не найден
+
+                item = self.table_widget.item(row, column_index)
+                if item is None:
+                    match = False
+                    break
+
+                value = item.text()
+
+                # Проверяем условия
+                if condition.min_value is not None and float(value) < float(condition.min_value):
+                    match = False
+                    break
+                if condition.max_value is not None and float(value) > float(condition.max_value):
+                    match = False
+                    break
+                if condition.selected_value is not None and value != condition.selected_value:
+                    match = False
+                    break
+
+            if match:
+                # Если строка соответствует всем условиям, добавляем ее в сгруппированные данные
+                row_dict = {headers[col]: self.table_widget.item(row, col).text() for col in range(self.table_widget.columnCount())}
+                grouped_data.append(row_dict)
+
+        random.shuffle(grouped_data)
+
+        numbers = self.group_input.text()
+
+        if numbers:
+            # Преобразуем строку в целое число
+            try:
+                num = int(numbers)
+            except ValueError:
+                print("Введите корректное число.")
+                num = 0  # Или любое другое значение по умолчанию
+
+            # Разбиваем grouped_data по количеству num
+            if num > 0:
+                # Создаем новый список для разбитых данных
+                split_data = []
+                
+                # Перебираем grouped_data и разбиваем его на подсписки
+                for i in range(0, len(grouped_data), num):
+                    split_data.append(grouped_data[i:i + num])
+
+                return split_data
+        return grouped_data
+              
     def get_column_index(self, column_name):
         for index in range(self.table_widget.columnCount()):
             if self.table_widget.horizontalHeaderItem(index).text() == column_name:
@@ -202,7 +310,6 @@ class TableWidget(QTableWidget):
 
     def setItem(self, row, column, item: QTableWidgetItem):
         super().setItem(row, column, item)
-
 
 class TableStateManager:
     def __init__(self, table_widget: QTableWidget):
@@ -273,6 +380,8 @@ class TableStateManager:
                 QMessageBox.warning(self.table_widget, "Ошибка", "Состояние таблицы не найдено.")
             except IndexError as e:
                 QMessageBox.warning(self.table_widget, "Ошибка", str(e))
+            except (EOFError, pickle.UnpicklingError) as e:
+                QMessageBox.warning(self.table_widget, "Ошибка", "Ошибка загрузки состояния таблицы: данные повреждены.")                
         else:
             # Загружаем последнее состояние
             try:
@@ -290,6 +399,8 @@ class TableStateManager:
 
             except FileNotFoundError:
                 QMessageBox.warning(self.table_widget, "Ошибка", "Состояние таблицы не найдено.")
+            except (EOFError, pickle.UnpicklingError) as e:
+                QMessageBox.warning(self.table_widget, "Ошибка", "Ошибка загрузки состояния таблицы: данные повреждены.")                
 
     def _set_table_state(self, table_state):
         self.table_widget.setColumnCount(len(table_state["columns"]))
@@ -314,6 +425,7 @@ class TableStateManager:
         for row in range(len(last_state["data"])):
             for col in range(len(last_state["columns"])):
                 self.table_widget.setItem(row, col, QTableWidgetItem(last_state["data"][row][col]))
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -334,7 +446,7 @@ class MainWindow(QMainWindow):
         # Создаем действия
         self.add_column_action = QAction("Добавить столбец", self)
         self.add_column_action.triggered.connect(self.add_column)
-        self.add_column_action.setShortcut("Ctrl+C")  # Горячая клавиша для добавления столбца
+        self.add_column_action.setShortcut("Ctrl+D")  # Горячая клавиша для добавления столбца
 
         self.add_row_action = QAction("Добавить строку", self)
         self.add_row_action.triggered.connect(self.add_row)
@@ -423,7 +535,6 @@ class MainWindow(QMainWindow):
             new = self.table_widget.item(row, col).text()
             if past != new:
                 self.save_table_state()
-
 
 
     # Не забудьте сохранить состояние при редактировании ячеек
