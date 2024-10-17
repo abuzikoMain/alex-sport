@@ -6,3 +6,9 @@ test_calendar.py
 your_database.db
 alpha-0.0.2/__pycache__/test_model_sql.cpython-312.pyc
 .gitignore
+index.txt
+output.xlsx
+table_state.pkl
+template.pkl
+alpha-0.0.3/test_model_sql.py
+alpha-0.0.3/app.py
