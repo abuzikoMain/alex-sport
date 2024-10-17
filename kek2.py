@@ -208,7 +208,8 @@ class TableStateManager:
     def __init__(self, table_widget: QTableWidget):
         self.table_widget = table_widget
         self.undo_stack = []
-
+        self.index_file = "index.txt"
+        self.data_file = "table_state.pkl"
 
     def save_table_state(self):
         current_state = {
@@ -223,27 +224,81 @@ class TableStateManager:
                 row_data.append(item.text() if item else "")
             current_state["data"].append(row_data)
 
-        self.undo_stack.append(current_state)
+        # Измеряем время записи
+        start_time = time.time()
+        
+        # Сохраняем состояние в файл
+        with open(self.data_file, "ab") as f:
+            position = f.tell()  # Получаем текущую позицию в файле
+            pickle.dump(current_state, f)  # Сохраняем состояние
+
+        # Добавляем индекс в индексный файл
+        with open(self.index_file, "a") as indexf:
+            indexf.write(f"{position}:{len(pickle.dumps(current_state))}\n")  # Позиция и размер записи
+
+        end_time = time.time()
+        write_time = end_time - start_time
+        print(f"Время записи состояния: {write_time:.6f} секунд")
 
         # Ограничиваем размер стека
+        self.undo_stack.append(current_state)
         if len(self.undo_stack) > 10:
             self.undo_stack.pop(0)
 
-    def load_table_state(self, filename="table_state.pkl"):
-        try:
-            with open(filename, "rb") as f:
-                table_state = pickle.load(f)
+    def load_table_state(self, index=None):
+        if index is not None:
+            # Загружаем состояние по индексу
+            try:
+                with open(self.index_file, "r") as indexf:
+                    lines = indexf.readlines()
+                    if index < 0 or index >= len(lines):
+                        raise IndexError("Индекс вне диапазона.")
 
-            self.table_widget.setColumnCount(len(table_state["columns"]))
-            self.table_widget.setHorizontalHeaderLabels(table_state["columns"])
-            self.table_widget.setRowCount(len(table_state["data"]))
+                    position, _ = map(int, lines[index].strip().split(':'))
 
-            for row in range(len(table_state["data"])):
-                for col in range(len(table_state["columns"])):
-                    self.table_widget.setItem(row, col, QTableWidgetItem(table_state["data"][row][col]))
+                # Измеряем время чтения
+                start_time = time.time()
+                
+                with open(self.data_file, "rb") as f:
+                    f.seek(position)  # Переходим к нужной позиции
+                    table_state = pickle.load(f)
 
-        except FileNotFoundError:
-            QMessageBox.warning(self.table_widget, "Ошибка", "Состояние таблицы не найдено.")
+                end_time = time.time()
+                read_time = end_time - start_time
+                print(f"Время чтения состояния: {read_time:.6f} секунд")
+
+                self._set_table_state(table_state)
+
+            except FileNotFoundError:
+                QMessageBox.warning(self.table_widget, "Ошибка", "Состояние таблицы не найдено.")
+            except IndexError as e:
+                QMessageBox.warning(self.table_widget, "Ошибка", str(e))
+        else:
+            # Загружаем последнее состояние
+            try:
+                # Измеряем время чтения
+                start_time = time.time()
+                
+                with open(self.data_file, "rb") as f:
+                    table_state = pickle.load(f)
+
+                end_time = time.time()
+                read_time = end_time - start_time
+                print(f"Время чтения состояния: {read_time:.6f} секунд")
+
+                self._set_table_state(table_state)
+
+            except FileNotFoundError:
+                QMessageBox.warning(self.table_widget, "Ошибка", "Состояние таблицы не найдено.")
+
+    def _set_table_state(self, table_state):
+        self.table_widget.setColumnCount(len(table_state["columns"]))
+        self.table_widget.setHorizontalHeaderLabels(table_state["columns"])
+        self.table_widget.setRowCount(len(table_state["data"]))
+
+        for row in range(len(table_state["data"])):
+            for col in range(len(table_state["columns"])):
+                self.table_widget.setItem(row, col, QTableWidgetItem(table_state["data"][row][col]))
 
     def undo(self):
         if not self.undo_stack:
