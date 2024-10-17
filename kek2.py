@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QLineEdit, QInputDialog, QMessageBox, QLabel, QComboBox, QHBoxLayout,
     QFileDialog
 )
-from PySide6.QtGui import QClipboard
+from PySide6.QtGui import QClipboard, QAction
 
 class GroupDataWindow(QWidget):
     def __init__(self, table_widget):
@@ -259,7 +259,6 @@ class TableStateManager:
         for row in range(len(last_state["data"])):
             for col in range(len(last_state["columns"])):
                 self.table_widget.setItem(row, col, QTableWidgetItem(last_state["data"][row][col]))
-
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -277,68 +276,87 @@ class MainWindow(QMainWindow):
 
         self.state_manager = TableStateManager(self.table_widget)
 
-        self.add_column_button = QPushButton("Добавить столбец")
-        self.add_column_button.clicked.connect(self.add_column)
+        # Создаем действия
+        self.add_column_action = QAction("Добавить столбец", self)
+        self.add_column_action.triggered.connect(self.add_column)
+        self.add_column_action.setShortcut("Ctrl+C")  # Горячая клавиша для добавления столбца
 
-        self.add_row_button = QPushButton("Добавить строку")
-        self.add_row_button.clicked.connect(self.add_row)
+        self.add_row_action = QAction("Добавить строку", self)
+        self.add_row_action.triggered.connect(self.add_row)
+        self.add_row_action.setShortcut("Ctrl+R")  # Горячая клавиша для добавления строки
 
-        self.group_button = QPushButton("Группировка")
-        self.group_button.clicked.connect(self.open_group_data_window)
+        self.group_action = QAction("Группировка", self)
+        self.group_action.triggered.connect(self.open_group_data_window)
+        self.group_action.setShortcut("Ctrl+G")  # Горячая клавиша для группировки
 
-        self.export_button = QPushButton("Экспорт в Excel")
-        self.export_button.clicked.connect(self.export_to_excel)
+        self.export_action = QAction("Экспорт в Excel", self)
+        self.export_action.triggered.connect(self.export_to_excel)
+        self.export_action.setShortcut("Ctrl+E")  # Горячая клавиша для экспорта
 
-        # В классе MainWindow добавьте новую кнопку для импорта
-        self.import_button = QPushButton("Импорт из Excel")
-        self.import_button.clicked.connect(self.import_from_excel)
+        self.import_action = QAction("Импорт из Excel", self)
+        self.import_action.triggered.connect(self.import_from_excel)
+        self.import_action.setShortcut("Ctrl+I")  # Горячая клавиша для импорта
 
+        self.save_template_action = QAction("Сохранить шаблон", self)
+        self.save_template_action.triggered.connect(self.save_template)
+        self.save_template_action.setShortcut("Ctrl+S")  # Горячая клавиша для сохранения шаблона
 
-        self.save_template_button = QPushButton("Сохранить шаблон")
-        self.save_template_button.clicked.connect(self.save_template)
+        self.load_template_action = QAction("Загрузить шаблон", self)
+        self.load_template_action.triggered.connect(self.load_template)
+        self.load_template_action.setShortcut("Ctrl+L")  # Горячая клавиша для загрузки шаблона
 
-        self.load_template_button = QPushButton("Загрузить шаблон")
-        self.load_template_button.clicked.connect(self.load_template)
+        self.save_table_state_action = QAction("Сохранить состояние таблицы", self)
+        self.save_table_state_action.triggered.connect(self.state_manager.save_table_state)
+        self.save_table_state_action.setShortcut("Ctrl+T")  # Горячая клавиша для сохранения состояния таблицы
 
-        self.save_table_state_button = QPushButton("Сохранить состояние таблицы")
-        self.save_table_state_button.clicked.connect(self.state_manager.save_table_state)
+        self.load_table_state_action = QAction("Загрузить состояние таблицы", self)
+        self.load_table_state_action.triggered.connect(self.state_manager.load_table_state)
+        self.load_table_state_action.setShortcut("Ctrl+Shift+T")  # Горячая клавиша для загрузки состояния таблицы
 
-        self.load_table_state_button = QPushButton("Загрузить состояние таблицы")
-        self.load_table_state_button.clicked.connect(self.state_manager.load_table_state)
-        self.state_manager.load_table_state()  # Загружаем состояние таблицы при запуске
+        self.copy_action = QAction("Копировать", self)
+        self.copy_action.triggered.connect(self.copy_to_clipboard)
+        self.copy_action.setShortcut("Ctrl+C")  # Горячая клавиша для копирования
 
-        self.copy_button = QPushButton("Копировать")
-        self.copy_button.clicked.connect(self.copy_to_clipboard)
+        self.paste_action = QAction("Вставить", self)
+        self.paste_action.triggered.connect(self.paste_from_clipboard)
+        self.paste_action.setShortcut("Ctrl+V")  # Горячая клавиша для вставки
 
-        self.paste_button = QPushButton("Вставить")
-        self.paste_button.clicked.connect(self.paste_from_clipboard)
+        self.undo_action = QAction("Отмена", self)
+        self.undo_action.triggered.connect(self.undo)
+        self.undo_action.setShortcut("Ctrl+Z")  # Горячая клавиша для отмены
 
-        self.undo_button = QPushButton("Отмена")
-        self.undo_button.clicked.connect(self.undo)
+        # Создаем меню
+        menu_bar = self.menuBar()
+        file_menu = menu_bar.addMenu("Файл")
+        file_menu.addAction(self.import_action)
+        file_menu.addAction(self.export_action)
+        file_menu.addSeparator()
+        file_menu.addAction(self.save_template_action)
+        file_menu.addAction(self.load_template_action)
 
+        edit_menu = menu_bar.addMenu("Правка")
+        edit_menu.addAction(self.copy_action)
+        edit_menu.addAction(self.paste_action)
+        edit_menu.addAction(self.undo_action)
 
+        table_menu = menu_bar.addMenu("Таблица")
+        table_menu.addAction(self.add_column_action)
+        table_menu.addAction(self.add_row_action)
+        table_menu.addAction(self.group_action)
+        table_menu.addSeparator()
+        table_menu.addAction(self.save_table_state_action)
+        table_menu.addAction(self.load_table_state_action)
 
+        self.state_manager.load_table_state()
+        # Загружаем шаблон при запуске
+        self.load_template()
+
+        # Устанавливаем центральный виджет
+        container = QWidget()
         layout = QVBoxLayout()
         layout.addWidget(self.table_widget)
-        layout.addWidget(self.add_column_button)
-        layout.addWidget(self.add_row_button)
-        layout.addWidget(self.group_button)
-        layout.addWidget(self.export_button)
-        layout.addWidget(self.import_button) 
-        layout.addWidget(self.save_template_button)
-        layout.addWidget(self.load_template_button)
-
-        
-        layout.addWidget(self.copy_button)  # Добавьте кнопку в layout
-        layout.addWidget(self.paste_button)  # Добавьте кнопку в layout
-        layout.addWidget(self.undo_button)    # Добавьте кнопку в layout
-         # Добавьте кнопку в layout
-
-        container = QWidget()
         container.setLayout(layout)
         self.setCentralWidget(container)
-
-        self.load_template()  # Загружаем шаблон при запуске
 
     def item_changed(self, item: QTableWidgetItem):
         if self.first_start_app:
@@ -394,7 +412,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         self.save_template()  # Сохраняем шаблон перед выходом
-        self.save_table_state()  # Сохраняем состояние таблицы перед выходом
+        self.state_manager.save_table_state()  # Сохраняем состояние таблицы перед выходом
         event.accept()  # Позволяем закрыть окно
 
 
@@ -504,6 +522,8 @@ class MainWindow(QMainWindow):
 
         except FileNotFoundError:
             QMessageBox.warning(self, "Ошибка", "Шаблон не найден.")
+        
+        self.first_start_app = False           
 
 
     # Новый метод для импорта данных из Excel
